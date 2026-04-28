@@ -1,17 +1,16 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-// La URL base depende de dónde se esté ejecutando la aplicación.
-// Si es en un emulador de Android, usa 10.0.2.2. Si es web o iOS, puedes usar localhost o la IP de tu máquina.
-// Reemplaza '192.168.x.x' con tu IP local si vas a probar en un dispositivo físico.
+// La URL base ahora se lee del archivo .env
+// En Expo, las variables de entorno deben empezar con EXPO_PUBLIC_
 
 const getBaseUrl = () => {
   if (Platform.OS === 'android') {
-    // 10.0.2.2 es el alias del emulador de Android para localhost del host
-    return 'https://10.0.2.2:44371/api/'; 
+    // Usa la variable para Android (10.0.2.2)
+    return process.env.EXPO_PUBLIC_API_URL_ANDROID || 'https://10.0.2.2:44371/api/';
   } else {
-    // Para web o emulador de iOS
-    return 'https://localhost:44371/api/';
+    // Usa la variable para Web / iOS (localhost)
+    return process.env.EXPO_PUBLIC_API_URL_WEB || 'https://localhost:44371/api/';
   }
 };
 
