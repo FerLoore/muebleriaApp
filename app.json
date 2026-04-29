@@ -17,7 +17,9 @@
         "foregroundImage": "./assets/images/LogoMuebleria_homeConfort.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true,
+      "package": "com.tuusuario.muebleria"
     },
     "web": {
       "output": "static",

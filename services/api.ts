@@ -7,10 +7,10 @@ import { Platform } from 'react-native';
 const getBaseUrl = () => {
   if (Platform.OS === 'android') {
     // Usa la variable para Android (10.0.2.2)
-    return process.env.EXPO_PUBLIC_API_URL_ANDROID || 'https://10.0.2.2:44371/api/';
+    return process.env.EXPO_PUBLIC_API_URL_ANDROID;
   } else {
     // Usa la variable para Web / iOS (localhost)
-    return process.env.EXPO_PUBLIC_API_URL_WEB || 'https://localhost:44371/api/';
+    return process.env.EXPO_PUBLIC_API_URL_WEB;
   }
 };
 
