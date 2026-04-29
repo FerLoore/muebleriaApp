@@ -1,60 +1,118 @@
 import { Slot, useRouter, usePathname } from 'expo-router';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { Colors } from '../constants/colors';
 import { Layout } from '../constants/layout';
 
 export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
+  // Leemos en tiempo real para que funcione si rotas el dispositivo
+  const { width } = Dimensions.get('window');
+  const isMobile = width < 768;
 
   const menuItems = [
-    { name: 'Lista Precios', icon: 'tags', route: '/lista-precios' },
+    { name: 'Precios', icon: 'tags', route: '/lista-precios' },
     { name: 'Clientes', icon: 'users', route: '/clientes' },
     { name: 'Pedidos', icon: 'shopping-cart', route: '/pedidos' },
     { name: 'Sucursales', icon: 'building', route: '/sucursales' },
   ];
 
+  const getBreadcrumb = () => {
+    if (pathname.includes('lista-precios')) return 'Home › Inventario › Lista de Precios';
+    if (pathname.includes('clientes')) return 'Home › Ventas › Clientes';
+    if (pathname.includes('pedidos')) return 'Home › Ventas › Pedidos';
+    if (pathname.includes('sucursales')) return 'Home › Config › Sucursales';
+    return 'Home';
+  };
+
   return (
     <View style={styles.container}>
-      {/* Sidebar - Oculta en móviles muy pequeños */}
-      {!Layout.isMobile && (
+      {/* Sidebar - solo desktop */}
+      {!isMobile && (
         <View style={styles.sidebar}>
           <View style={styles.logoContainer}>
-            <FontAwesome5 name="box" size={32} color={Colors.primary} />
-            <Text style={styles.logoText}>Mueblería</Text>
+            <View style={styles.logoBox}>
+              <FontAwesome5 name="box" size={20} color="#fff" />
+            </View>
           </View>
-          
           <View style={styles.navMenu}>
             {menuItems.map((item, index) => {
               const isActive = pathname.startsWith(item.route);
               return (
-                <TouchableOpacity 
-                  key={index} 
+                <TouchableOpacity
+                  key={index}
                   style={[styles.navItem, isActive && styles.navItemActive]}
                   onPress={() => router.push(item.route as any)}
+                  activeOpacity={0.7}
                 >
-                  <FontAwesome5 
-                    name={item.icon} 
-                    size={20} 
-                    color={isActive ? Colors.primary : Colors.textMuted} 
-                    style={{ width: 25, textAlign: 'center' }}
+                  <FontAwesome5
+                    name={item.icon}
+                    size={20}
+                    color="#fff"
+                    style={{ opacity: isActive ? 1 : 0.4 }}
                   />
-                  <Text style={[styles.navText, isActive && { color: Colors.primary }]}>
-                    {item.name}
-                  </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
         </View>
       )}
-      
+
       {/* Contenido Principal */}
       <View style={styles.mainContent}>
-        <Slot />
+        {/* Top Nav */}
+        <View style={styles.topNav}>
+          <View style={styles.breadcrumbContainer}>
+            <Text style={styles.breadcrumbText} numberOfLines={1}>
+              {getBreadcrumb()}
+            </Text>
+          </View>
+          <View style={styles.userBadge}>
+            {!isMobile && <Text style={styles.companyName}>Mueblería Central</Text>}
+            <View style={styles.avatar}>
+              <Svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <Circle cx="12" cy="8" r="4" stroke={Colors.text} strokeWidth="1.8"/>
+                <Path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke={Colors.text} strokeWidth="1.8" strokeLinecap="round"/>
+              </Svg>
+            </View>
+          </View>
+        </View>
+
+        {/* Página actual */}
+        <View style={styles.pageContent}>
+          <Slot />
+        </View>
+
+        {/* Bottom Tab Bar - solo móvil */}
+        {isMobile && (
+          <View style={styles.bottomBar}>
+            {menuItems.map((item, index) => {
+              const isActive = pathname.startsWith(item.route);
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.bottomTab}
+                  onPress={() => router.push(item.route as any)}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome5
+                    name={item.icon}
+                    size={18}
+                    color={isActive ? Colors.primary : '#999'}
+                  />
+                  <Text style={[styles.bottomTabLabel, isActive && styles.bottomTabLabelActive]}>
+                    {item.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
+
       <Toast />
     </View>
   );
@@ -66,44 +124,107 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: Colors.background,
   },
+  // Sidebar (desktop)
   sidebar: {
-    width: 250,
+    width: 72,
     backgroundColor: Colors.sidebar,
-    paddingTop: Layout.spacing.xlarge,
+    paddingTop: 20,
+    alignItems: 'center',
   },
   logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Layout.spacing.xlarge,
-    paddingHorizontal: Layout.spacing.large,
-    gap: 10,
+    marginBottom: 40,
   },
-  logoText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
+  logoBox: {
+    width: 40,
+    height: 40,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   navMenu: {
     flex: 1,
+    width: '100%',
   },
   navItem: {
-    flexDirection: 'row',
+    width: '100%',
+    height: 56,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: Layout.spacing.medium,
-    paddingHorizontal: Layout.spacing.large,
-    gap: 15,
+    borderLeftWidth: 3,
+    borderColor: 'transparent',
+    marginBottom: 5,
   },
   navItemActive: {
-    backgroundColor: 'rgba(200, 150, 12, 0.1)',
-    borderRightWidth: 3,
+    backgroundColor: 'rgba(200, 150, 12, 0.18)',
     borderColor: Colors.primary,
   },
-  navText: {
-    color: Colors.textMuted,
-    fontSize: 16,
-    fontWeight: '500',
-  },
+  // Layout principal
   mainContent: {
     flex: 1,
+    flexDirection: 'column',
+  },
+  pageContent: {
+    flex: 1,
+  },
+  // Top Nav
+  topNav: {
+    height: 56,
+    backgroundColor: '#fff',
+    borderBottomWidth: 0.5,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  breadcrumbContainer: {
+    flex: 1,
+    marginRight: 10,
+  },
+  breadcrumbText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  userBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  companyName: {
+    fontSize: 13,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E5E3DC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Bottom Tab Bar (móvil)
+  bottomBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderTopWidth: 0.5,
+    borderColor: Colors.border,
+    height: 64,
+    paddingBottom: 8,
+  },
+  bottomTab: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  bottomTabLabel: {
+    fontSize: 10,
+    color: '#999',
+    fontWeight: '500',
+  },
+  bottomTabLabelActive: {
+    color: Colors.primary,
   },
 });

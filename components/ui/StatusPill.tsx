@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   pillText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '500',
   },
 });

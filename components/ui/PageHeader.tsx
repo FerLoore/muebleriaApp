@@ -20,10 +20,10 @@ export default function PageHeader({ title, subtitle, buttonText, buttonIcon, on
         {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       </View>
       {buttonText && onButtonPress && (
-        <TouchableOpacity style={styles.btnPrimary} onPress={onButtonPress}>
-          {buttonIcon && (
-            <FontAwesome5 name={buttonIcon} color="#fff" size={14} style={{ marginRight: 8 }} />
-          )}
+        <TouchableOpacity style={styles.btnPrimary} onPress={onButtonPress} activeOpacity={0.8}>
+          <View style={styles.iconBox}>
+            <FontAwesome5 name={buttonIcon || 'plus'} color="#fff" size={10} />
+          </View>
           <Text style={styles.btnPrimaryText}>{buttonText}</Text>
         </TouchableOpacity>
       )}
@@ -49,21 +49,30 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textMuted,
     marginTop: 4,
   },
   btnPrimary: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: Layout.borderRadius,
+    backgroundColor: Colors.text,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  iconBox: {
+    width: 20,
+    height: 20,
+    backgroundColor: Colors.primary,
+    borderRadius: 6,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   btnPrimaryText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
+    fontWeight: '500',
+    fontSize: 13,
   },
 });

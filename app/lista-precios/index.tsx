@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
+import Svg, { Rect, Path, Line } from 'react-native-svg';
 import PageHeader from '../../components/ui/PageHeader';
 import MetricCard from '../../components/ui/MetricCard';
 import StatusPill from '../../components/ui/StatusPill';
@@ -10,6 +11,28 @@ import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
 import { getListasPrecios, createListaPrecios, updateListaPrecios, deleteListaPrecios, ListaPrecios } from '../../services/listaPreciosService';
 
+// Ícono de lista (SVG) para columna Nombre
+const ListIcon = () => (
+  <View style={styles.nameIconBox}>
+    <Svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <Line x1="8" y1="6" x2="21" y2="6" stroke={Colors.primary} strokeWidth="2" strokeLinecap="round"/>
+      <Line x1="8" y1="12" x2="21" y2="12" stroke={Colors.primary} strokeWidth="2" strokeLinecap="round"/>
+      <Line x1="8" y1="18" x2="21" y2="18" stroke={Colors.primary} strokeWidth="2" strokeLinecap="round"/>
+      <Line x1="3" y1="6" x2="3.01" y2="6" stroke={Colors.primary} strokeWidth="2" strokeLinecap="round"/>
+      <Line x1="3" y1="12" x2="3.01" y2="12" stroke={Colors.primary} strokeWidth="2" strokeLinecap="round"/>
+      <Line x1="3" y1="18" x2="3.01" y2="18" stroke={Colors.primary} strokeWidth="2" strokeLinecap="round"/>
+    </Svg>
+  </View>
+);
+
+// Badge de moneda con punto dorado
+const MonedaBadge = ({ id }: { id?: number | null }) => (
+  <View style={styles.monedaBadge}>
+    <View style={styles.monedaDot} />
+    <Text style={styles.monedaText}>{id ? `GTQ` : 'N/A'}</Text>
+  </View>
+);
+
 export default function ListaPreciosScreen() {
   const [data, setData] = useState<ListaPrecios[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,9 +40,7 @@ export default function ListaPreciosScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<ListaPrecios | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -28,39 +49,23 @@ export default function ListaPreciosScreen() {
       setData(result);
       setError(null);
     } catch (err) {
-      console.error(err);
       setError('Error al conectar con el servidor.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateNew = () => {
-    setEditingItem(null);
-    setModalVisible(true);
-  };
-
-  const handleEdit = (item: ListaPrecios) => {
-    setEditingItem(item);
-    setModalVisible(true);
-  };
+  const handleCreateNew = () => { setEditingItem(null); setModalVisible(true); };
+  const handleEdit = (item: ListaPrecios) => { setEditingItem(item); setModalVisible(true); };
 
   const handleDelete = async (item: ListaPrecios) => {
     if (!item.ID_LISTA_PRECIOS) return;
     try {
       await deleteListaPrecios(item.ID_LISTA_PRECIOS);
-      Toast.show({
-        type: 'success',
-        text1: 'Eliminado',
-        text2: 'El registro se ha eliminado correctamente.'
-      });
+      Toast.show({ type: 'success', text1: 'Eliminado', text2: 'Registro eliminado correctamente.' });
       fetchData();
-    } catch (err) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Error eliminando el registro'
-      });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Error eliminando el registro' });
     }
   };
 
@@ -72,95 +77,142 @@ export default function ListaPreciosScreen() {
         await createListaPrecios(item);
       }
       setModalVisible(false);
-      Toast.show({
-        type: 'success',
-        text1: 'Guardado',
-        text2: 'El registro se ha guardado correctamente.'
-      });
+      Toast.show({ type: 'success', text1: 'Guardado', text2: 'Registro guardado correctamente.' });
       fetchData();
-    } catch (err) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Error guardando el registro'
-      });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Error guardando el registro' });
     }
   };
 
-  const total = data.length;
   const now = new Date();
+  const total = data.length;
   const vigentes = data.filter(d => {
     if (!d.FECHA_DESDE || !d.FECHA_HASTA) return false;
-    const from = new Date(d.FECHA_DESDE);
-    const to = new Date(d.FECHA_HASTA);
-    return now >= from && now <= to;
+    return now >= new Date(d.FECHA_DESDE) && now <= new Date(d.FECHA_HASTA);
   }).length;
   const expiradas = total - vigentes;
 
   const getStatus = (item: ListaPrecios) => {
-    if (!item.FECHA_DESDE || !item.FECHA_HASTA) return { label: 'Indefinida', colorText: Colors.status.defaultText, colorBg: Colors.status.defaultBg };
-    const from = new Date(item.FECHA_DESDE);
-    const to = new Date(item.FECHA_HASTA);
-    const isValid = now >= from && now <= to;
-    return isValid 
+    if (!item.FECHA_DESDE || !item.FECHA_HASTA)
+      return { label: 'Indefinida', colorText: Colors.status.defaultText, colorBg: Colors.status.defaultBg };
+    const isValid = now >= new Date(item.FECHA_DESDE) && now <= new Date(item.FECHA_HASTA);
+    return isValid
       ? { label: 'Vigente', colorText: Colors.status.activeText, colorBg: Colors.status.activeBg }
       : { label: 'Expirada', colorText: Colors.status.inactiveText, colorBg: Colors.status.inactiveBg };
   };
 
   const columns: ColumnDef<ListaPrecios>[] = [
-    { key: 'NOMBRE_LISTA_PRECIOS', header: 'Nombre', flex: 2 },
-    { key: 'ID_MONEDA', header: 'Moneda', flex: 1, renderCell: (item) => <Text style={{fontSize: 14}}>{item.ID_MONEDA || 'N/A'}</Text> },
-    { key: 'FECHA_DESDE', header: 'Desde', flex: 1, renderCell: (item) => <Text style={{fontSize: 14}}>{item.FECHA_DESDE ? item.FECHA_DESDE.split('T')[0] : '-'}</Text> },
-    { key: 'FECHA_HASTA', header: 'Hasta', flex: 1, renderCell: (item) => <Text style={{fontSize: 14}}>{item.FECHA_HASTA ? item.FECHA_HASTA.split('T')[0] : '-'}</Text> },
-    { key: 'estado', header: 'Estado', flex: 1, renderCell: (item) => {
-      const status = getStatus(item);
-      return <StatusPill label={status.label} colorText={status.colorText} colorBg={status.colorBg} />;
-    }}
+    {
+      key: 'NOMBRE_LISTA_PRECIOS', header: 'Nombre', flex: 2,
+      renderCell: (item) => (
+        <View style={styles.nameCell}>
+          <ListIcon />
+          <View>
+            <Text style={styles.nameCellTitle}>{item.NOMBRE_LISTA_PRECIOS}</Text>
+            <Text style={styles.nameCellId}>#{`LP-${String(item.ID_LISTA_PRECIOS ?? 0).padStart(3, '0')}`}</Text>
+          </View>
+        </View>
+      )
+    },
+    {
+      key: 'ID_MONEDA', header: 'Moneda', flex: 1,
+      renderCell: (item) => <MonedaBadge id={item.ID_MONEDA} />
+    },
+    {
+      key: 'FECHA_DESDE', header: 'Desde', flex: 1,
+      renderCell: (item) => <Text style={styles.dateText}>{item.FECHA_DESDE ? item.FECHA_DESDE.split('T')[0] : '—'}</Text>
+    },
+    {
+      key: 'FECHA_HASTA', header: 'Hasta', flex: 1,
+      renderCell: (item) => <Text style={styles.dateText}>{item.FECHA_HASTA ? item.FECHA_HASTA.split('T')[0] : '—'}</Text>
+    },
+    {
+      key: 'estado', header: 'Estado', flex: 1,
+      renderCell: (item) => {
+        const s = getStatus(item);
+        return <StatusPill label={s.label} colorText={s.colorText} colorBg={s.colorBg} />;
+      }
+    },
   ];
 
   return (
     <View style={styles.container}>
-      <PageHeader 
-        title="Listas de Precios" 
+      <PageHeader
+        title="Listas de Precios"
         subtitle="Gestión y seguimiento de listas de precios"
         buttonText="Nueva Lista"
         buttonIcon="plus"
         onButtonPress={handleCreateNew}
       />
 
+      {/* Métricas con colores distintos */}
       <View style={styles.metricsContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricsScroll}>
-          <MetricCard label="Total listas" value={total} />
-          <MetricCard label="Vigentes" value={vigentes} valueColor={Colors.success} />
-          <MetricCard label="Expiradas" value={expiradas} valueColor={Colors.danger} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <MetricCard
+            label="Total Listas"
+            value={total}
+            subtext="registros en sistema"
+            backgroundColor="#1a1a1a"
+            labelColor="rgba(255,255,255,0.5)"
+            valueColor="#fff"
+            subtextColor="rgba(255,255,255,0.35)"
+          />
+          <MetricCard
+            label="Vigentes"
+            value={vigentes}
+            subtext="● activas ahora"
+            backgroundColor={Colors.success}
+            labelColor="rgba(255,255,255,0.7)"
+            valueColor="#fff"
+            subtextColor="rgba(255,255,255,0.6)"
+          />
+          <MetricCard
+            label="Expiradas"
+            value={expiradas}
+            subtext="fuera de vigencia"
+            backgroundColor={Colors.card}
+            labelColor="#888"
+            valueColor={Colors.danger}
+            subtextColor="#ccc"
+          />
         </ScrollView>
       </View>
 
+      {/* Tabla */}
       <View style={styles.contentContainer}>
         {loading ? (
           <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 50 }} />
         ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
         ) : (
-          <DataTable<ListaPrecios> 
+          <DataTable<ListaPrecios>
             data={data}
             columns={columns}
-            keyExtractor={(item) => item.ID_LISTA_PRECIOS ? item.ID_LISTA_PRECIOS.toString() : Math.random().toString()}
+            keyExtractor={(item) => item.ID_LISTA_PRECIOS?.toString() ?? Math.random().toString()}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            totalCount={total}
             renderMobileCard={(item, actions) => {
-              const status = getStatus(item);
+              const s = getStatus(item);
               return (
-                <View style={styles.card}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{item.NOMBRE_LISTA_PRECIOS}</Text>
-                    <StatusPill label={status.label} colorText={status.colorText} colorBg={status.colorBg} />
+                <View style={styles.mobileCard}>
+                  <View style={styles.mobileCardHeader}>
+                    <View style={styles.nameCell}>
+                      <ListIcon />
+                      <View>
+                        <Text style={styles.nameCellTitle}>{item.NOMBRE_LISTA_PRECIOS}</Text>
+                        <Text style={styles.nameCellId}>#{`LP-${String(item.ID_LISTA_PRECIOS ?? 0).padStart(3, '0')}`}</Text>
+                      </View>
+                    </View>
+                    <StatusPill label={s.label} colorText={s.colorText} colorBg={s.colorBg} />
                   </View>
-                  <Text style={styles.cardText}>Moneda: {item.ID_MONEDA || 'N/A'}</Text>
-                  <Text style={styles.cardText}>Vigencia: {item.FECHA_DESDE ? item.FECHA_DESDE.split('T')[0] : '-'} a {item.FECHA_HASTA ? item.FECHA_HASTA.split('T')[0] : '-'}</Text>
-                  <View style={styles.cardActions}>
-                    {actions}
+                  <View style={styles.mobileCardRow}>
+                    <MonedaBadge id={item.ID_MONEDA} />
+                    <Text style={styles.dateText}>
+                      {item.FECHA_DESDE ? item.FECHA_DESDE.split('T')[0] : '—'}  →  {item.FECHA_HASTA ? item.FECHA_HASTA.split('T')[0] : '—'}
+                    </Text>
                   </View>
+                  <View style={styles.mobileCardActions}>{actions}</View>
                 </View>
               );
             }}
@@ -187,9 +239,6 @@ const styles = StyleSheet.create({
   metricsContainer: {
     marginBottom: Layout.spacing.large,
   },
-  metricsScroll: {
-    gap: Layout.spacing.medium,
-  },
   contentContainer: {
     flex: 1,
   },
@@ -198,39 +247,83 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 50,
   },
-  // Replicated classes from DataTable for mobile card rendering injected from top level
-  card: {
+  // Name cell
+  nameCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  nameIconBox: {
+    width: 34,
+    height: 34,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nameCellTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  nameCellId: {
+    fontSize: 11,
+    color: '#aaa',
+    marginTop: 2,
+  },
+  // Moneda badge
+  monedaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  monedaDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.primary,
+  },
+  monedaText: {
+    fontSize: 13,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  dateText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  // Mobile card
+  mobileCard: {
     backgroundColor: Colors.card,
-    padding: 15,
-    borderRadius: Layout.borderRadius,
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 10,
-    borderWidth: Layout.borderWidth,
+    borderWidth: 0.5,
     borderColor: Colors.border,
   },
-  cardHeader: {
+  mobileCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text,
-    flex: 1,
+  mobileCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
   },
-  cardText: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    marginBottom: 4,
-  },
-  cardActions: {
+  mobileCardActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 10,
     paddingTop: 10,
-    borderTopWidth: Layout.borderWidth,
-    borderColor: '#eee',
-    gap: 15,
+    borderTopWidth: 0.5,
+    borderColor: Colors.borderLight,
+    gap: 8,
   },
 });
