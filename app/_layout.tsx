@@ -1,10 +1,9 @@
-import { Slot, useRouter, usePathname } from 'expo-router';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { Slot, usePathname, useRouter } from 'expo-router';
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
-import Svg, { Path, Circle } from 'react-native-svg';
 import { Colors } from '../constants/colors';
-import { Layout } from '../constants/layout';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -18,6 +17,12 @@ export default function RootLayout() {
     { name: 'Clientes', icon: 'users', route: '/clientes' },
     { name: 'Pedidos', icon: 'shopping-cart', route: '/pedidos' },
     { name: 'Sucursales', icon: 'building', route: '/sucursales' },
+    { name: 'Articulos', icon: 'shopping-cart', route: '/articulo' },//(edonis)
+    { name: 'Ubucacion Bodega', icon: 'map', route: '/ubicacion-bodega' },//(edonis)
+    { name: 'Categoria Articulos', icon: 'list-alt', route: '/categorias-articulo' },//(edonis)
+    { name: 'Transferencias Bodega', icon: 'exchange-alt', route: '/transferencia-bodega' },//(edonis)
+    { name: 'Stock Articulo', icon: 'cubes', route: '/stock-articulo' },//(edonis)
+    { name: 'Unidad Medida', icon: 'ruler', route: '/unidad-medida' }//(edonis)
   ];
 
   const getBreadcrumb = () => {

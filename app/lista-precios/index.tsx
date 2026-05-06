@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Line } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
-import Svg, { Rect, Path, Line } from 'react-native-svg';
-import PageHeader from '../../components/ui/PageHeader';
-import MetricCard from '../../components/ui/MetricCard';
-import StatusPill from '../../components/ui/StatusPill';
-import DataTable, { ColumnDef } from '../../components/ui/DataTable';
 import ListaPreciosModal from '../../components/lista-precios/ListaPreciosModal';
+import DataTable, { ColumnDef } from '../../components/ui/DataTable';
+import MetricCard from '../../components/ui/MetricCard';
+import PageHeader from '../../components/ui/PageHeader';
+import StatusPill from '../../components/ui/StatusPill';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
-import { getListasPrecios, createListaPrecios, updateListaPrecios, deleteListaPrecios, ListaPrecios } from '../../services/listaPreciosService';
+import { createListaPrecios, deleteListaPrecios, getListasPrecios, ListaPrecios, updateListaPrecios } from '../../services/listaPreciosService';
 
 // Ícono de lista (SVG) para columna Nombre
 const ListIcon = () => (
