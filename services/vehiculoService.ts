@@ -13,41 +13,19 @@ export interface Vehiculo {
   ID_SUCURSAL: number | null;
 }
 
-interface VehiculoPayload {
-  placaVehiculo: string | null;
-  marcaVehiculo: string | null;
-  modeloVehiculo: string | null;
-  tipoVehiculo: string | null;
-  capacidadKgVehiculo: number | null;
-  kmUltServVehiculo: number | null;
-  kmSigServVehiculo: number | null;
-  estadoVehiculo: string | null;
-  idSucursal: number | null;
-}
-
-const toPayload = (data: Omit<Vehiculo, 'ID_VEHICULO'>): VehiculoPayload => ({
-  placaVehiculo:       data.PLACA_VEHICULO,
-  marcaVehiculo:       data.MARCA_VEHICULO,
-  modeloVehiculo:      data.MODELO_VEHICULO,
-  tipoVehiculo:        data.TIPO_VEHICULO,
-  capacidadKgVehiculo: data.CAPACIDAD_KG_VEHICULO,
-  kmUltServVehiculo:   data.KM_ULT_SERV_VEHICULO,
-  kmSigServVehiculo:   data.KM_SIG_SERV_VEHICULO,
-  estadoVehiculo:      data.ESTADO_VEHICULO,
-  idSucursal:          data.ID_SUCURSAL,
-});
-
 export const getVehiculos = async (): Promise<Vehiculo[]> => {
   const response = await api.get('/Vehiculo');
   return response.data;
 };
 
 export const createVehiculo = async (data: Omit<Vehiculo, 'ID_VEHICULO'>): Promise<void> => {
-  await api.post('/Vehiculo', toPayload(data));
+  // El backend usa los nombres de columna directamente (SCREAMING_SNAKE_CASE)
+  await api.post('/Vehiculo', data);
 };
 
 export const updateVehiculo = async (id: number, data: Omit<Vehiculo, 'ID_VEHICULO'>): Promise<void> => {
-  await api.put(`/Vehiculo?id=${id}`, toPayload(data));
+  // El controller Edit recibe el objeto completo con ID en el body
+  await api.put('/Vehiculo', { ...data, ID_VEHICULO: id });
 };
 
 export const deleteVehiculo = async (id: number): Promise<void> => {

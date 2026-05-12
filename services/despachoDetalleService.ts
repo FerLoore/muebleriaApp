@@ -9,35 +9,18 @@ export interface DespachoDetalle {
   ID_SUCURSAL_ENTR: number | null;
 }
 
-interface DespachoDetallePayload {
-  idOrdenDespacho: number;
-  secuenciaEntregaDespachoDetalle: number;
-  estadoDespachoDetalle: string | null;
-  idTraslado: number | null;
-  idFacturaVenta: number | null;
-  idSucursalEntr: number | null;
-}
-
-const toPayload = (data: DespachoDetalle): DespachoDetallePayload => ({
-  idOrdenDespacho:                   data.ID_ORDEN_DESPACHO,
-  secuenciaEntregaDespachoDetalle:   data.SECUENCIA_ENTREGA_DESPACHO_DETALLE,
-  estadoDespachoDetalle:             data.ESTADO_DESPACHO_DETALLE,
-  idTraslado:                        data.ID_TRASLADO,
-  idFacturaVenta:                    data.ID_FACTURA_VENTA,
-  idSucursalEntr:                    data.ID_SUCURSAL_ENTR,
-});
-
 export const getDespachoDetalles = async (): Promise<DespachoDetalle[]> => {
   const response = await api.get('/DespachoDetalle');
   return response.data;
 };
 
 export const createDespachoDetalle = async (data: DespachoDetalle): Promise<void> => {
-  await api.post('/DespachoDetalle', toPayload(data));
+  // Enviar con los nombres exactos que espera el backend VB.NET
+  await api.post('/DespachoDetalle', data);
 };
 
 export const updateDespachoDetalle = async (data: DespachoDetalle): Promise<void> => {
-  await api.put('/DespachoDetalle', toPayload(data));
+  await api.put('/DespachoDetalle', data);
 };
 
 export const deleteDespachoDetalle = async (idOrden: number, secuencia: number): Promise<void> => {

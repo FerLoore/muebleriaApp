@@ -11,37 +11,17 @@ export interface SeguimientoEnvio {
   ID_USUARIO_MODIFICA: number | null;
 }
 
-interface SeguimientoEnvioPayload {
-  fechaHoraSeguimientoEnvio: string | null;
-  descripcionSeguimientoEnvio: string | null;
-  ubicacionSeguimientoEnvio: string | null;
-  estadoSeguimientoEnvio: string | null;
-  idEntrega: number | null;
-  idUsuarioCrea: number | null;
-  idUsuarioModifica: number | null;
-}
-
-const toPayload = (data: Omit<SeguimientoEnvio, 'ID_SEGUIMIENTO_ENVIO'>): SeguimientoEnvioPayload => ({
-  fechaHoraSeguimientoEnvio:   data.FECHA_HORA_SEGUIMIENTO_ENVIO,
-  descripcionSeguimientoEnvio: data.DESCRIPCION_SEGUIMIENTO_ENVIO,
-  ubicacionSeguimientoEnvio:   data.UBICACION_SEGUIMIENTO_ENVIO,
-  estadoSeguimientoEnvio:      data.ESTADO_SEGUIMIENTO_ENVIO,
-  idEntrega:                   data.ID_ENTREGA,
-  idUsuarioCrea:               data.ID_USUARIO_CREA,
-  idUsuarioModifica:           data.ID_USUARIO_MODIFICA,
-});
-
 export const getSeguimientosEnvio = async (): Promise<SeguimientoEnvio[]> => {
   const response = await api.get('/SeguimientoEnvio');
   return response.data;
 };
 
 export const createSeguimientoEnvio = async (data: Omit<SeguimientoEnvio, 'ID_SEGUIMIENTO_ENVIO'>): Promise<void> => {
-  await api.post('/SeguimientoEnvio', toPayload(data));
+  await api.post('/SeguimientoEnvio', data);
 };
 
 export const updateSeguimientoEnvio = async (id: number, data: Omit<SeguimientoEnvio, 'ID_SEGUIMIENTO_ENVIO'>): Promise<void> => {
-  await api.put(`/SeguimientoEnvio?id=${id}`, toPayload(data));
+  await api.put('/SeguimientoEnvio', { ...data, ID_SEGUIMIENTO_ENVIO: id });
 };
 
 export const deleteSeguimientoEnvio = async (id: number): Promise<void> => {
