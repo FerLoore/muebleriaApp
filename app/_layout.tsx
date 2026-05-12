@@ -1,6 +1,14 @@
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Slot, usePathname, useRouter } from 'expo-router';
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
 import { Colors } from '../constants/colors';
@@ -8,22 +16,43 @@ import { Colors } from '../constants/colors';
 export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
-  // Leemos en tiempo real para que funcione si rotas el dispositivo
   const { width } = Dimensions.get('window');
   const isMobile = width < 768;
-
+  
+  // Tipado correcto para el estado de módulos expandidos
+  const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+  
   const menuItems = [
-    { name: 'Precios', icon: 'tags', route: '/lista-precios' },
-    { name: 'Clientes', icon: 'users', route: '/clientes' },
-    { name: 'Pedidos', icon: 'shopping-cart', route: '/pedidos' },
-    { name: 'Sucursales', icon: 'building', route: '/sucursales' },
-    { name: 'Articulos', icon: 'shopping-cart', route: '/articulo' },//(edonis)
-    { name: 'Ubucacion Bodega', icon: 'map', route: '/ubicacion-bodega' },//(edonis)
-    { name: 'Categoria Articulos', icon: 'list-alt', route: '/categorias-articulo' },//(edonis)
-    { name: 'Transferencias Bodega', icon: 'exchange-alt', route: '/transferencia-bodega' },//(edonis)
-    { name: 'Stock Articulo', icon: 'cubes', route: '/stock-articulo' },//(edonis)
-    { name: 'Unidad Medida', icon: 'ruler', route: '/unidad-medida' }//(edonis)
+    {
+      module: 'Ventas',
+      item: [
+        { name: 'Precios', icon: 'tags', route: '/lista-precios' },
+        { name: 'Clientes', icon: 'users', route: '/clientes' },
+        { name: 'Orden de Venta', icon: 'dollar', route: '/orden-venta' },
+        { name: 'Factura venta', icon: 'file', route: '/factura-venta' }
+      ]
+    },
+    {
+      module: 'Inventario',
+      item: [
+        { name: 'Articulos', icon: 'shopping-cart', route: '/articulo' },
+        { name: 'Ubicacion Bodega', icon: 'map', route: '/ubicacion-bodega' },
+        { name: 'Categoria Articulos', icon: 'list-alt', route: '/categorias-articulo' },
+        { name: 'Transferencias Bodega', icon: 'exchange-alt', route: '/transferencia-bodega' },
+        { name: 'Stock Articulo', icon: 'cubes', route: '/stock-articulo' },
+        { name: 'Unidad Medida', icon: 'ruler', route: '/unidad-medida' },
+        { name: 'Bodega', icon: 'cubes', route: '/bodegas' },
+      ]
+    }
   ];
+
+  // Función para toggle del módulo con tipado correcto
+  const toggleModule = (moduleName: string) => {
+    setExpandedModules(prev => ({
+      ...prev,
+      [moduleName]: !prev[moduleName]
+    }));
+  };
 
   const getBreadcrumb = () => {
     if (pathname.includes('lista-precios')) return 'Home › Inventario › Lista de Precios';
@@ -43,26 +72,61 @@ export default function RootLayout() {
               <FontAwesome5 name="box" size={20} color="#fff" />
             </View>
           </View>
-          <View style={styles.navMenu}>
-            {menuItems.map((item, index) => {
-              const isActive = pathname.startsWith(item.route);
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={[styles.navItem, isActive && styles.navItemActive]}
-                  onPress={() => router.push(item.route as any)}
+          <ScrollView
+            style={styles.navMenu}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {menuItems.map((module, moduleIndex) => (
+              <View key={moduleIndex} style={styles.moduleContainer}>
+                
+                {/* Módulo Toggle Button */}
+                <TouchableOpacity 
+                  style={styles.moduleHeader}
+                  onPress={() => toggleModule(module.module)}
                   activeOpacity={0.7}
                 >
-                  <FontAwesome5
-                    name={item.icon}
-                    size={20}
-                    color="#fff"
-                    style={{ opacity: isActive ? 1 : 0.4 }}
+                  <Text style={styles.moduleTitle}>
+                    {module.module}
+                  </Text>
+                  <FontAwesome5 
+                    name={expandedModules[module.module] ? "chevron-up" : "chevron-down"}
+                    size={12}
+                    color="#999"
                   />
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+
+                {/* Items del módulo (solo si está expandido) */}
+                {expandedModules[module.module] && (
+                  <View style={styles.moduleItems}>
+                    {module.item.map((item, index) => {
+                      const isActive = pathname.startsWith(item.route);
+
+                      return (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.navItem,
+                            isActive && styles.navItemActive
+                          ]}
+                          onPress={() => router.push(item.route as any)}
+                          activeOpacity={0.7}
+                        >
+                          <FontAwesome5
+                            name={item.icon}
+                            size={20}
+                            color="#fff"
+                            style={{ opacity: isActive ? 1 : 0.4 }}
+                          />
+                          <Text style={styles.navText}>{item.name}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            ))}
+          </ScrollView>
         </View>
       )}
 
@@ -94,7 +158,7 @@ export default function RootLayout() {
         {/* Bottom Tab Bar - solo móvil */}
         {isMobile && (
           <View style={styles.bottomBar}>
-            {menuItems.map((item, index) => {
+            {menuItems.flatMap((module) => module.item).map((item, index) => {
               const isActive = pathname.startsWith(item.route);
               return (
                 <TouchableOpacity
@@ -131,13 +195,13 @@ const styles = StyleSheet.create({
   },
   // Sidebar (desktop)
   sidebar: {
-    width: 72,
+    width: 250, // Aumentamos el ancho para mostrar los textos
     backgroundColor: Colors.sidebar,
     paddingTop: 20,
-    alignItems: 'center',
   },
   logoContainer: {
     marginBottom: 40,
+    alignItems: 'center',
   },
   logoBox: {
     width: 40,
@@ -149,20 +213,48 @@ const styles = StyleSheet.create({
   },
   navMenu: {
     flex: 1,
-    width: '100%',
+    paddingHorizontal: 15,
+  },
+  moduleContainer: {
+    marginBottom: 10,
+  },
+  moduleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    marginBottom: 5,
+  },
+  moduleTitle: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  moduleItems: {
+    marginLeft: 10,
   },
   navItem: {
-    width: '100%',
-    height: 56,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    borderLeftWidth: 3,
-    borderColor: 'transparent',
-    marginBottom: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginVertical: 2,
+    gap: 12,
   },
   navItemActive: {
     backgroundColor: 'rgba(200, 150, 12, 0.18)',
-    borderColor: Colors.primary,
+  },
+  navText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
   },
   // Layout principal
   mainContent: {
