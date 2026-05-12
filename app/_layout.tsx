@@ -43,6 +43,23 @@ export default function RootLayout() {
         { name: 'Unidad Medida', icon: 'ruler', route: '/unidad-medida' },
         { name: 'Bodega', icon: 'cubes', route: '/bodegas' },
       ]
+    },
+    {
+      module: 'Logística',
+      item: [
+        { name: 'Orden Despacho', icon: 'clipboard-list', route: '/orden-despachado' },
+        { name: 'Despacho Detalle', icon: 'shipping-fast', route: '/despacho-detalle' },
+        { name: 'Entrega', icon: 'box-open', route: '/entrega' },
+        { name: 'Seguimiento Envío', icon: 'route', route: '/seguimiento-envio' },
+        { name: 'Transportistas', icon: 'id-badge', route: '/transportista' },
+        { name: 'Vehículos', icon: 'truck', route: '/vehiculo' },
+      ]
+    },
+    {
+      module: 'RRHH',
+      item: [
+        { name: 'Tipo Contrato', icon: 'file-contract', route: '/tipo-contrato' },
+      ]
     }
   ];
 
