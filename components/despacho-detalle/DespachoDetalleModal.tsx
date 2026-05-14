@@ -1,203 +1,170 @@
 import { FontAwesome5 } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
-import {
-  DespachoDetalle,
-  createDespachoDetalle,
-  updateDespachoDetalle,
-} from '../../services/despachoDetalleService';
+import { DespachoDetalle, createDespachoDetalle, updateDespachoDetalle } from '../../services/despachoDetalleService';
+import { getOrdenesDespacho } from '../../services/ordenDespachadoService';
+import { getFacturasVenta } from '../../services/facturaVentaService';
+import { getSucursales } from '../../services/sucursalesService';
 import Drawer from '../ui/Drawer';
+import DropdownSelect, { DropdownOption } from '../ui/DropdownSelect';
 
 const ESTADOS = ['P', 'E', 'C'];
 const ESTADO_LABEL: Record<string, string> = { P: 'Pendiente', E: 'En Ruta', C: 'Completado' };
 
-const EMPTY_FORM = {
-  ID_ORDEN_DESPACHO: '',
-  SECUENCIA_ENTREGA_DESPACHO_DETALLE: '',
-  ESTADO_DESPACHO_DETALLE: 'P',
-  ID_TRASLADO: '',
-  ID_FACTURA_VENTA: '',
-  ID_SUCURSAL_ENTR: '',
-};
-type Form = typeof EMPTY_FORM;
-
-type Props = {
-  visible: boolean;
-  onClose: () => void;
-  item: DespachoDetalle | null;
-  onSaved: () => void;
-};
+type Props = { visible: boolean; onClose: () => void; item: DespachoDetalle | null; onSaved: () => void; };
 
 export default function DespachoDetalleModal({ visible, onClose, item, onSaved }: Props) {
-  const [form, setForm]     = useState<Form>(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Partial<Form>>({});
+  const [secuencia, setSecuencia] = useState('');
+  const [estado, setEstado]       = useState('P');
+
+  const [idOrden,    setIdOrden]    = useState<number | null>(null);
+  const [idFactura,  setIdFactura]  = useState<number | null>(null);
+  const [idSucursal, setIdSucursal] = useState<number | null>(null);
+
+  const [ordenes,    setOrdenes]    = useState<DropdownOption[]>([]);
+  const [facturas,   setFacturas]   = useState<DropdownOption[]>([]);
+  const [sucursales, setSucursales] = useState<DropdownOption[]>([]);
+  const [loadingOpts, setLoadingOpts] = useState(false);
+
+  const [saving, setSaving]  = useState(false);
+  const [errors, setErrors]  = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!visible) return;
+    setLoadingOpts(true);
+    Promise.all([getOrdenesDespacho(), getFacturasVenta(), getSucursales()])
+      .then(([ords, facs, sucs]) => {
+        setOrdenes(ords.map(o => ({
+          value: o.ID_ORDEN_DESPACHO,
+          label: `${o.NOMBRE_ORDEN_DESPACHO ?? 'Sin nombre'} (ID ${o.ID_ORDEN_DESPACHO})`,
+        })));
+        setFacturas(facs.map(f => ({
+          value: f.ID_FACTURA_VENTA,
+          label: `${f.SERIE_FACTURA_VENTA ?? '—'}-${f.CORRELATIVO_FACTURA_VENTA ?? '—'} (ID ${f.ID_FACTURA_VENTA})`,
+        })));
+        setSucursales(sucs.map(s => ({
+          value: s.IdSucursal,
+          label: s.NombreSucursal ?? `Sucursal ${s.IdSucursal}`,
+        })));
+      })
+      .catch(() => Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudieron cargar opciones.' }))
+      .finally(() => setLoadingOpts(false));
+  }, [visible]);
 
   useEffect(() => {
     if (item) {
-      setForm({
-        ID_ORDEN_DESPACHO:                 String(item.ID_ORDEN_DESPACHO),
-        SECUENCIA_ENTREGA_DESPACHO_DETALLE: String(item.SECUENCIA_ENTREGA_DESPACHO_DETALLE),
-        ESTADO_DESPACHO_DETALLE:            item.ESTADO_DESPACHO_DETALLE ?? 'P',
-        ID_TRASLADO:                        item.ID_TRASLADO   !== null ? String(item.ID_TRASLADO)   : '',
-        ID_FACTURA_VENTA:                   item.ID_FACTURA_VENTA !== null ? String(item.ID_FACTURA_VENTA) : '',
-        ID_SUCURSAL_ENTR:                   item.ID_SUCURSAL_ENTR !== null ? String(item.ID_SUCURSAL_ENTR) : '',
-      });
+      setIdOrden(item.ID_ORDEN_DESPACHO);
+      setSecuencia(String(item.SECUENCIA_ENTREGA_DESPACHO_DETALLE));
+      setEstado(item.ESTADO_DESPACHO_DETALLE ?? 'P');
+      setIdFactura(item.ID_FACTURA_VENTA);
+      setIdSucursal(item.ID_SUCURSAL_ENTR);
     } else {
-      setForm(EMPTY_FORM);
+      setIdOrden(null); setSecuencia(''); setEstado('P');
+      setIdFactura(null); setIdSucursal(null);
     }
     setErrors({});
   }, [item, visible]);
 
-  const set = (key: keyof Form, value: string) => {
-    setForm(prev => ({ ...prev, [key]: value }));
-    setErrors(prev => ({ ...prev, [key]: undefined }));
-  };
-  const num = (v: string) => v === '' ? null : Number(v);
-
-  const validate = (): boolean => {
-    const e: Partial<Form> = {};
-    if (!form.ID_ORDEN_DESPACHO.trim())                 e.ID_ORDEN_DESPACHO = 'Requerido';
-    if (!form.SECUENCIA_ENTREGA_DESPACHO_DETALLE.trim()) e.SECUENCIA_ENTREGA_DESPACHO_DETALLE = 'Requerido';
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
   const handleSave = async () => {
-    if (!validate()) return;
+    const e: Record<string, string> = {};
+    if (!idOrden)   e.idOrden   = 'Requerido';
+    if (!secuencia) e.secuencia = 'Requerido';
+    if (Object.keys(e).length) { setErrors(e); return; }
     setSaving(true);
     const payload: DespachoDetalle = {
-      ID_ORDEN_DESPACHO:                 Number(form.ID_ORDEN_DESPACHO),
-      SECUENCIA_ENTREGA_DESPACHO_DETALLE: Number(form.SECUENCIA_ENTREGA_DESPACHO_DETALLE),
-      ESTADO_DESPACHO_DETALLE:            form.ESTADO_DESPACHO_DETALLE || null,
-      ID_TRASLADO:                        num(form.ID_TRASLADO),
-      ID_FACTURA_VENTA:                   num(form.ID_FACTURA_VENTA),
-      ID_SUCURSAL_ENTR:                   num(form.ID_SUCURSAL_ENTR),
+      ID_ORDEN_DESPACHO:                 idOrden!,
+      SECUENCIA_ENTREGA_DESPACHO_DETALLE: Number(secuencia),
+      ESTADO_DESPACHO_DETALLE:           estado || null,
+      ID_TRASLADO:                       null,   // no hay tabla Traslado en el backend aún
+      ID_FACTURA_VENTA:                  idFactura,
+      ID_SUCURSAL_ENTR:                  idSucursal,
     };
     try {
-      if (item) {
-        await updateDespachoDetalle(payload);
-      } else {
-        await createDespachoDetalle(payload);
-      }
+      if (item) { await updateDespachoDetalle(payload); } else { await createDespachoDetalle(payload); }
       Toast.show({ type: 'success', text1: 'Guardado', text2: 'Despacho detalle guardado.' });
       onSaved();
-    } catch {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo guardar.' });
-    } finally {
-      setSaving(false);
-    }
+    } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo guardar.' }); }
+    finally   { setSaving(false); }
   };
 
   return (
     <Drawer visible={visible} onClose={onClose} title={item ? 'Editar Despacho Detalle' : 'Nuevo Despacho Detalle'}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        <SectionTitle label="Identificación" />
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Field label="ID Orden Despacho *" value={form.ID_ORDEN_DESPACHO} onChangeText={v => set('ID_ORDEN_DESPACHO', v)} error={errors.ID_ORDEN_DESPACHO} keyboardType="numeric" placeholder="ID" />
-          </View>
-          <View style={{ width: Layout.spacing.medium }} />
-          <View style={{ flex: 1 }}>
-            <Field label="Secuencia *" value={form.SECUENCIA_ENTREGA_DESPACHO_DETALLE} onChangeText={v => set('SECUENCIA_ENTREGA_DESPACHO_DETALLE', v)} error={errors.SECUENCIA_ENTREGA_DESPACHO_DETALLE} keyboardType="numeric" placeholder="Secuencia" />
-          </View>
-        </View>
+        <Sec label="Orden y Secuencia" />
+        <DropdownSelect
+          label="Orden de Despacho *"
+          value={idOrden}
+          onChange={setIdOrden}
+          options={ordenes}
+          loading={loadingOpts}
+          placeholder="Seleccionar orden..."
+          error={errors.idOrden}
+        />
+        <F label="Secuencia *" val={secuencia} onChange={setSecuencia} kb="numeric" ph="Ej: 1" err={errors.secuencia} />
 
-        <SectionTitle label="Estado" />
-        <View style={styles.toggleRow}>
+        <Sec label="Estado" />
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
           {ESTADOS.map(est => (
-            <TouchableOpacity key={est} style={[styles.toggleBtn, form.ESTADO_DESPACHO_DETALLE === est && styles.toggleBtnActive]} onPress={() => set('ESTADO_DESPACHO_DETALLE', est)}>
-              <Text style={[styles.toggleText, form.ESTADO_DESPACHO_DETALLE === est && styles.toggleTextActive]}>{ESTADO_LABEL[est]}</Text>
+            <TouchableOpacity key={est} style={[s.toggleBtn, estado === est && s.toggleBtnActive]} onPress={() => setEstado(est)}>
+              <Text style={[s.toggleText, estado === est && s.toggleTextActive]}>{ESTADO_LABEL[est]}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <SectionTitle label="Referencias" />
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Field label="ID Traslado" value={form.ID_TRASLADO} onChangeText={v => set('ID_TRASLADO', v)} keyboardType="numeric" placeholder="ID" />
-          </View>
-          <View style={{ width: Layout.spacing.medium }} />
-          <View style={{ flex: 1 }}>
-            <Field label="ID Factura Venta" value={form.ID_FACTURA_VENTA} onChangeText={v => set('ID_FACTURA_VENTA', v)} keyboardType="numeric" placeholder="ID" />
-          </View>
-        </View>
-        <Field label="ID Sucursal Entrega" value={form.ID_SUCURSAL_ENTR} onChangeText={v => set('ID_SUCURSAL_ENTR', v)} keyboardType="numeric" placeholder="ID sucursal" />
+        <Sec label="Referencias" />
+        <DropdownSelect
+          label="Factura de Venta"
+          value={idFactura}
+          onChange={setIdFactura}
+          options={facturas}
+          loading={loadingOpts}
+          placeholder="Seleccionar factura..."
+        />
+        <DropdownSelect
+          label="Sucursal de Entrega"
+          value={idSucursal}
+          onChange={setIdSucursal}
+          options={sucursales}
+          loading={loadingOpts}
+          placeholder="Seleccionar sucursal..."
+        />
 
         <View style={{ height: 24 }} />
       </ScrollView>
-
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.btnCancel} onPress={onClose} disabled={saving}>
-          <Text style={styles.btnCancelText}>Cancelar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.btnSave, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" size="small" /> : <>
-            <FontAwesome5 name="save" size={13} color="#fff" />
-            <Text style={styles.btnSaveText}>{item ? 'Guardar cambios' : 'Crear registro'}</Text>
-          </>}
+      <View style={s.footer}>
+        <TouchableOpacity style={s.btnCancel} onPress={onClose} disabled={saving}><Text style={s.btnCancelText}>Cancelar</Text></TouchableOpacity>
+        <TouchableOpacity style={[s.btnSave, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+          {saving ? <ActivityIndicator color="#fff" size="small" /> : <><FontAwesome5 name="save" size={13} color="#fff" /><Text style={s.btnSaveText}>{item ? 'Guardar cambios' : 'Crear detalle'}</Text></>}
         </TouchableOpacity>
       </View>
     </Drawer>
   );
 }
 
-function SectionTitle({ label }: { label: string }) {
+function Sec({ label }: { label: string }) {
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: 8 }}>
+    <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8 }}>{label}</Text>
+    <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
+  </View>;
+}
+function F({ label, val, onChange, err, ph, kb = 'default', flex }: {
+  label: string; val: string; onChange: (v: string) => void; err?: string; ph?: string; kb?: any; flex?: boolean;
+}) {
   return (
-    <View style={section.wrap}>
-      <Text style={section.text}>{label}</Text>
-      <View style={section.line} />
+    <View style={[{ marginBottom: 14 }, flex && { flex: 1 }]}>
+      <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.text, marginBottom: 5 }}>{label}</Text>
+      <TextInput style={{ backgroundColor: Colors.background, borderWidth: 1, borderColor: err ? '#DC2626' : Colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: Colors.text }}
+        value={val} onChangeText={onChange} placeholder={ph} placeholderTextColor={Colors.textMuted} keyboardType={kb} />
+      {!!err && <Text style={{ fontSize: 11, color: '#DC2626', marginTop: 3 }}>{err}</Text>}
     </View>
   );
 }
-const section = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: 8 },
-  text: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8 },
-  line: { flex: 1, height: 1, backgroundColor: Colors.border },
-});
-
-type FieldProps = {
-  label: string; value: string; onChangeText: (v: string) => void;
-  error?: string; placeholder?: string; keyboardType?: 'default' | 'numeric' | 'decimal-pad' | 'email-address';
-  multiline?: boolean; autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-};
-function Field({ label, value, onChangeText, error, placeholder, keyboardType = 'default', multiline, autoCapitalize }: FieldProps) {
-  return (
-    <View style={field.wrap}>
-      <Text style={field.label}>{label}</Text>
-      <TextInput style={[field.input, !!error && field.inputError, multiline && { height: 80, textAlignVertical: 'top' }]}
-        value={value} onChangeText={onChangeText} placeholder={placeholder}
-        placeholderTextColor={Colors.textMuted} keyboardType={keyboardType}
-        multiline={multiline} autoCapitalize={autoCapitalize} />
-      {!!error && <Text style={field.error}>{error}</Text>}
-    </View>
-  );
-}
-const field = StyleSheet.create({
-  wrap: { marginBottom: 14 },
-  label: { fontSize: 12, fontWeight: '600', color: Colors.text, marginBottom: 5 },
-  input: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: Colors.text },
-  inputError: { borderColor: '#DC2626' },
-  error: { fontSize: 11, color: '#DC2626', marginTop: 3 },
-});
-
-const styles = StyleSheet.create({
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Layout.spacing.large, paddingTop: Layout.spacing.medium },
-  row: { flexDirection: 'row', alignItems: 'flex-start' },
-  toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
+const s = StyleSheet.create({
+  scroll: { flex: 1 }, content: { paddingHorizontal: Layout.spacing.large, paddingTop: Layout.spacing.medium },
   toggleBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background },
   toggleBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   toggleText: { fontSize: 12, color: Colors.textMuted, fontWeight: '500' },

@@ -5,42 +5,83 @@ import Toast from 'react-native-toast-message';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
 import { OrdenDespacho, createOrdenDespacho, updateOrdenDespacho } from '../../services/ordenDespachadoService';
+import { getTransportistas } from '../../services/transportistaService';
+import { getVehiculos } from '../../services/vehiculoService';
+import { getSucursales } from '../../services/sucursalesService';
 import Drawer from '../ui/Drawer';
+import DatePickerField from '../ui/DatePickerField';
+import DropdownSelect, { DropdownOption } from '../ui/DropdownSelect';
 
 const ESTADOS = ['P', 'D', 'C'];
 const ESTADO_LABEL: Record<string, string> = { P: 'Pendiente', D: 'Despachado', C: 'Completado' };
 
-const EMPTY: Record<string, string> = {
-  NOMBRE_ORDEN_DESPACHO: '', FECHA_CREA_ORDEN_DESPACHO: '', FECHA_ENTREGA_ORDEN_DESPACHO: '',
-  PESO_KG_TOTAL_ORDEN_DESPACHO: '', ESTADO_ORDEN_DESPACHADO: 'P',
-  ID_VEHICULO: '', ID_TRANSPORTISTA: '', ID_SUCURSAL: '',
+const EMPTY_FORM = {
+  NOMBRE_ORDEN_DESPACHO: '',
+  FECHA_CREA_ORDEN_DESPACHO: '',
+  FECHA_ENTREGA_ORDEN_DESPACHO: '',
+  PESO_KG_TOTAL_ORDEN_DESPACHO: '',
+  ESTADO_ORDEN_DESPACHADO: 'P',
 };
 
 type Props = { visible: boolean; onClose: () => void; item: OrdenDespacho | null; onSaved: () => void; };
 
 export default function OrdenDespachoModal({ visible, onClose, item, onSaved }: Props) {
-  const [form, setForm] = useState<Record<string, string>>(EMPTY);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [form, setForm]                 = useState<Record<string, string>>(EMPTY_FORM);
+  const [idVehiculo, setIdVehiculo]     = useState<number | null>(null);
+  const [idTransportista, setIdTransportista] = useState<number | null>(null);
+  const [idSucursal, setIdSucursal]     = useState<number | null>(null);
+  const [saving, setSaving]             = useState(false);
+  const [errors, setErrors]             = useState<Record<string, string>>({});
+
+  const [vehiculos, setVehiculos]           = useState<DropdownOption[]>([]);
+  const [transportistas, setTransportistas] = useState<DropdownOption[]>([]);
+  const [sucursales, setSucursales]         = useState<DropdownOption[]>([]);
+  const [loadingOpts, setLoadingOpts]       = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    setLoadingOpts(true);
+    Promise.all([getVehiculos(), getTransportistas(), getSucursales()])
+      .then(([vs, ts, sucs]) => {
+        setVehiculos(vs.map(v => ({
+          value: v.ID_VEHICULO,
+          label: `${v.PLACA_VEHICULO ?? ''} — ${v.MARCA_VEHICULO ?? ''} ${v.MODELO_VEHICULO ?? ''}`.trim(),
+        })));
+        setTransportistas(ts.map(t => ({
+          value: t.ID_TRANSPORTISTA,
+          label: `${t.NOMBRE_TRANSPORTISTA ?? ''} ${t.APELLIDOS_TRANSPORTISTA ?? ''}`.trim(),
+        })));
+        setSucursales(sucs.map(s => ({
+          value: s.IdSucursal,
+          label: s.NombreSucursal ?? `Sucursal ${s.IdSucursal}`,
+        })));
+      })
+      .catch(() => Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudieron cargar opciones.' }))
+      .finally(() => setLoadingOpts(false));
+  }, [visible]);
 
   useEffect(() => {
     if (item) {
       setForm({
-        NOMBRE_ORDEN_DESPACHO: item.NOMBRE_ORDEN_DESPACHO ?? '',
-        FECHA_CREA_ORDEN_DESPACHO: item.FECHA_CREA_ORDEN_DESPACHO ?? '',
+        NOMBRE_ORDEN_DESPACHO:        item.NOMBRE_ORDEN_DESPACHO ?? '',
+        FECHA_CREA_ORDEN_DESPACHO:    item.FECHA_CREA_ORDEN_DESPACHO ?? '',
         FECHA_ENTREGA_ORDEN_DESPACHO: item.FECHA_ENTREGA_ORDEN_DESPACHO ?? '',
         PESO_KG_TOTAL_ORDEN_DESPACHO: item.PESO_KG_TOTAL_ORDEN_DESPACHO != null ? String(item.PESO_KG_TOTAL_ORDEN_DESPACHO) : '',
-        ESTADO_ORDEN_DESPACHADO: item.ESTADO_ORDEN_DESPACHADO ?? 'P',
-        ID_VEHICULO: item.ID_VEHICULO != null ? String(item.ID_VEHICULO) : '',
-        ID_TRANSPORTISTA: item.ID_TRANSPORTISTA != null ? String(item.ID_TRANSPORTISTA) : '',
-        ID_SUCURSAL: item.ID_SUCURSAL != null ? String(item.ID_SUCURSAL) : '',
+        ESTADO_ORDEN_DESPACHADO:      item.ESTADO_ORDEN_DESPACHADO ?? 'P',
       });
-    } else { setForm(EMPTY); }
+      setIdVehiculo(item.ID_VEHICULO);
+      setIdTransportista(item.ID_TRANSPORTISTA);
+      setIdSucursal(item.ID_SUCURSAL);
+    } else {
+      setForm(EMPTY_FORM);
+      setIdVehiculo(null);
+      setIdTransportista(null);
+      setIdSucursal(null);
+    }
     setErrors({});
   }, [item, visible]);
 
   const set = (k: string, v: string) => { setForm(p => ({ ...p, [k]: v })); setErrors(p => ({ ...p, [k]: '' })); };
-  const num = (v: string) => v === '' ? null : Number(v);
 
   const handleSave = async () => {
     const e: Record<string, string> = {};
@@ -48,51 +89,81 @@ export default function OrdenDespachoModal({ visible, onClose, item, onSaved }: 
     if (Object.keys(e).length) { setErrors(e); return; }
     setSaving(true);
     const payload: Omit<OrdenDespacho, 'ID_ORDEN_DESPACHO'> = {
-      NOMBRE_ORDEN_DESPACHO: form.NOMBRE_ORDEN_DESPACHO || null,
-      FECHA_CREA_ORDEN_DESPACHO: form.FECHA_CREA_ORDEN_DESPACHO || null,
+      NOMBRE_ORDEN_DESPACHO:        form.NOMBRE_ORDEN_DESPACHO || null,
+      FECHA_CREA_ORDEN_DESPACHO:    form.FECHA_CREA_ORDEN_DESPACHO || null,
       FECHA_ENTREGA_ORDEN_DESPACHO: form.FECHA_ENTREGA_ORDEN_DESPACHO || null,
-      PESO_KG_TOTAL_ORDEN_DESPACHO: num(form.PESO_KG_TOTAL_ORDEN_DESPACHO),
-      ESTADO_ORDEN_DESPACHADO: form.ESTADO_ORDEN_DESPACHADO || null,
-      ID_VEHICULO: num(form.ID_VEHICULO),
-      ID_TRANSPORTISTA: num(form.ID_TRANSPORTISTA),
-      ID_SUCURSAL: num(form.ID_SUCURSAL),
+      PESO_KG_TOTAL_ORDEN_DESPACHO: form.PESO_KG_TOTAL_ORDEN_DESPACHO ? Number(form.PESO_KG_TOTAL_ORDEN_DESPACHO) : null,
+      ESTADO_ORDEN_DESPACHADO:      form.ESTADO_ORDEN_DESPACHADO || null,
+      ID_VEHICULO:                  idVehiculo,
+      ID_TRANSPORTISTA:             idTransportista,
+      ID_SUCURSAL:                  idSucursal,
     };
     try {
-      if (item) { await updateOrdenDespacho(item.ID_ORDEN_DESPACHO, payload); } else { await createOrdenDespacho(payload); }
-      Toast.show({ type: 'success', text1: 'Guardado', text2: 'Orden de despacho guardada.' });
+      if (item) { await updateOrdenDespacho(item.ID_ORDEN_DESPACHO, payload); }
+      else       { await createOrdenDespacho(payload); }
+      Toast.show({ type: 'success', text1: 'Guardado', text2: 'Orden guardada.' });
       onSaved();
     } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo guardar.' }); }
-    finally { setSaving(false); }
+    finally   { setSaving(false); }
   };
 
   return (
     <Drawer visible={visible} onClose={onClose} title={item ? 'Editar Orden Despacho' : 'Nueva Orden Despacho'}>
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
         <Sec label="Información General" />
         <F label="Nombre *" val={form.NOMBRE_ORDEN_DESPACHO} onChange={v => set('NOMBRE_ORDEN_DESPACHO', v)} err={errors.NOMBRE_ORDEN_DESPACHO} ph="Nombre de la orden" />
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: Layout.spacing.medium }}>
-          <F flex label="Fecha Creación" val={form.FECHA_CREA_ORDEN_DESPACHO} onChange={v => set('FECHA_CREA_ORDEN_DESPACHO', v)} ph="YYYY-MM-DD" />
-          <F flex label="Fecha Entrega" val={form.FECHA_ENTREGA_ORDEN_DESPACHO} onChange={v => set('FECHA_ENTREGA_ORDEN_DESPACHO', v)} ph="YYYY-MM-DD" />
+        <View style={{ flexDirection: 'row', gap: Layout.spacing.medium }}>
+          <DatePickerField
+            label="Fecha Creación"
+            value={form.FECHA_CREA_ORDEN_DESPACHO}
+            onChange={v => set('FECHA_CREA_ORDEN_DESPACHO', v)}
+            flex
+          />
+          <DatePickerField
+            label="Fecha Entrega"
+            value={form.FECHA_ENTREGA_ORDEN_DESPACHO}
+            onChange={v => set('FECHA_ENTREGA_ORDEN_DESPACHO', v)}
+            flex
+          />
         </View>
         <F label="Peso Total (kg)" val={form.PESO_KG_TOTAL_ORDEN_DESPACHO} onChange={v => set('PESO_KG_TOTAL_ORDEN_DESPACHO', v)} kb="decimal-pad" ph="0.00" />
 
         <Sec label="Estado" />
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           {ESTADOS.map(est => (
-            <TouchableOpacity key={est}
-              style={[s.toggleBtn, form.ESTADO_ORDEN_DESPACHADO === est && s.toggleBtnActive]}
-              onPress={() => set('ESTADO_ORDEN_DESPACHADO', est)}>
+            <TouchableOpacity key={est} style={[s.toggleBtn, form.ESTADO_ORDEN_DESPACHADO === est && s.toggleBtnActive]} onPress={() => set('ESTADO_ORDEN_DESPACHADO', est)}>
               <Text style={[s.toggleText, form.ESTADO_ORDEN_DESPACHADO === est && s.toggleTextActive]}>{ESTADO_LABEL[est]}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <Sec label="Asignación" />
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: Layout.spacing.medium }}>
-          <F flex label="ID Vehículo" val={form.ID_VEHICULO} onChange={v => set('ID_VEHICULO', v)} kb="numeric" ph="ID" />
-          <F flex label="ID Transportista" val={form.ID_TRANSPORTISTA} onChange={v => set('ID_TRANSPORTISTA', v)} kb="numeric" ph="ID" />
-        </View>
-        <F label="ID Sucursal" val={form.ID_SUCURSAL} onChange={v => set('ID_SUCURSAL', v)} kb="numeric" ph="ID" />
+        <DropdownSelect
+          label="Vehículo"
+          value={idVehiculo}
+          onChange={setIdVehiculo}
+          options={vehiculos}
+          loading={loadingOpts}
+          placeholder="Seleccionar vehículo..."
+        />
+        <DropdownSelect
+          label="Transportista"
+          value={idTransportista}
+          onChange={setIdTransportista}
+          options={transportistas}
+          loading={loadingOpts}
+          placeholder="Seleccionar transportista..."
+        />
+        <DropdownSelect
+          label="Sucursal"
+          value={idSucursal}
+          onChange={setIdSucursal}
+          options={sucursales}
+          loading={loadingOpts}
+          placeholder="Seleccionar sucursal..."
+        />
+
         <View style={{ height: 24 }} />
       </ScrollView>
       <View style={s.footer}>
@@ -111,21 +182,18 @@ function Sec({ label }: { label: string }) {
     <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
   </View>;
 }
-
 function F({ label, val, onChange, err, ph, kb = 'default', flex }: {
   label: string; val: string; onChange: (v: string) => void; err?: string; ph?: string; kb?: any; flex?: boolean;
 }) {
   return (
     <View style={[{ marginBottom: 14 }, flex && { flex: 1 }]}>
       <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.text, marginBottom: 5 }}>{label}</Text>
-      <TextInput
-        style={{ backgroundColor: Colors.background, borderWidth: 1, borderColor: err ? '#DC2626' : Colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: Colors.text }}
+      <TextInput style={{ backgroundColor: Colors.background, borderWidth: 1, borderColor: err ? '#DC2626' : Colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: Colors.text }}
         value={val} onChangeText={onChange} placeholder={ph} placeholderTextColor={Colors.textMuted} keyboardType={kb} />
       {!!err && <Text style={{ fontSize: 11, color: '#DC2626', marginTop: 3 }}>{err}</Text>}
     </View>
   );
 }
-
 const s = StyleSheet.create({
   scroll: { flex: 1 }, content: { paddingHorizontal: Layout.spacing.large, paddingTop: Layout.spacing.medium },
   toggleBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background },

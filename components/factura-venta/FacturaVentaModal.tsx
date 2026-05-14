@@ -17,7 +17,11 @@ import {
   createFacturaVenta,
   updateFacturaVenta,
 } from '../../services/facturaVentaService';
+import { getSalidasMercaderia } from '../../services/salidaMercaderiaService';
+import { getUsuarios } from '../../services/usuariosService';
 import Drawer from '../ui/Drawer';
+import DatePickerField from '../ui/DatePickerField';
+import DropdownSelect, { DropdownOption } from '../ui/DropdownSelect';
  
 // ─── Constantes ───────────────────────────────────────────────────────────────
  
@@ -31,9 +35,9 @@ const EMPTY_FORM = {
   OBSERVACION_SALIDA_MERCADERIA: '',
   ESTADO_SALIDA_MERCADERIA:      'PENDIENTE',
   TOTAL_FACTURA_VENTA:           '',
-  ID_SALIDA_MERCADERIA:          '',
-  ID_USUARIO_CREA:               '',
-  ID_USUARIO_MODIFICA:           '',
+  ID_SALIDA_MERCADERIA:          null as number | null,
+  ID_USUARIO_CREA:               null as number | null,
+  ID_USUARIO_MODIFICA:           null as number | null,
 };
  
 type Form = typeof EMPTY_FORM;
@@ -54,8 +58,32 @@ type Props = {
 export default function FacturaVentaModal({ visible, onClose, factura, onSaved }: Props) {
   const [form, setForm]     = useState<Form>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Partial<Form>>({});
+  const [errors, setErrors] = useState<Partial<Record<string,string>>>({});
+
+  const [salidas, setSalidas]   = useState<DropdownOption[]>([]);
+  const [usuarios, setUsuarios] = useState<DropdownOption[]>([]);
+  const [loadingOpts, setLoadingOpts] = useState(false);
  
+  // Cargar opciones de lookup al abrir
+  useEffect(() => {
+    if (!visible) return;
+    setLoadingOpts(true);
+    Promise.all([getSalidasMercaderia(), getUsuarios()])
+      .then(([sal, usr]) => {
+        setSalidas(sal.map(s => ({
+          label: `${s.NUMERO_SALIDA_MERCADERIA ?? '—'} (${s.ESTADO_SALIDA_MERCADERIA ?? '—'})`,
+          value: s.ID_SALIDA_MERCADERIA,
+        })));
+        setUsuarios(usr.map(u => ({
+          label: `${u.NombreUsuario ?? '—'} (ID ${u.IdUsuario})`,
+          value: u.IdUsuario,
+        })));
+      })
+      .catch(() => Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudieron cargar opciones.' }))
+      .finally(() => setLoadingOpts(false));
+  }, [visible]);
+
+  // Poblar formulario al editar
   useEffect(() => {
     if (factura) {
       setForm({
@@ -65,10 +93,10 @@ export default function FacturaVentaModal({ visible, onClose, factura, onSaved }
         FECHA_FACTURA_VENTA:           toInputDate(factura.FECHA_FACTURA_VENTA),
         OBSERVACION_SALIDA_MERCADERIA: factura.OBSERVACION_SALIDA_MERCADERIA ?? '',
         ESTADO_SALIDA_MERCADERIA:      factura.ESTADO_SALIDA_MERCADERIA      ?? 'PENDIENTE',
-        TOTAL_FACTURA_VENTA:           factura.TOTAL_FACTURA_VENTA           !== null ? String(factura.TOTAL_FACTURA_VENTA)         : '',
-        ID_SALIDA_MERCADERIA:          factura.ID_SALIDA_MERCADERIA          !== null ? String(factura.ID_SALIDA_MERCADERIA)        : '',
-        ID_USUARIO_CREA:               factura.ID_USUARIO_CREA               !== null ? String(factura.ID_USUARIO_CREA)            : '',
-        ID_USUARIO_MODIFICA:           factura.ID_USUARIO_MODIFICA           !== null ? String(factura.ID_USUARIO_MODIFICA)        : '',
+        TOTAL_FACTURA_VENTA:           factura.TOTAL_FACTURA_VENTA           !== null ? String(factura.TOTAL_FACTURA_VENTA) : '',
+        ID_SALIDA_MERCADERIA:          factura.ID_SALIDA_MERCADERIA ?? null,
+        ID_USUARIO_CREA:               factura.ID_USUARIO_CREA ?? null,
+        ID_USUARIO_MODIFICA:           factura.ID_USUARIO_MODIFICA ?? null,
       });
     } else {
       setForm(EMPTY_FORM);
@@ -76,20 +104,21 @@ export default function FacturaVentaModal({ visible, onClose, factura, onSaved }
     setErrors({});
   }, [factura, visible]);
  
-  const set = (key: keyof Form, value: string) => {
+  const setTxt = (key: keyof Form, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
     setErrors(prev => ({ ...prev, [key]: undefined }));
   };
- 
+
+  const setNum = (key: keyof Form, value: number | null) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setErrors(prev => ({ ...prev, [key]: undefined }));
+  };
+
   const num = (val: string) => val === '' ? null : Number(val);
  
   const validate = (): boolean => {
-    const e: Partial<Form> = {};
+    const e: Partial<Record<string, string>> = {};
     if (!form.SERIE_FACTURA_VENTA.trim()) e.SERIE_FACTURA_VENTA = 'Requerido';
-    if (form.FECHA_SALIDA_FACTURA_VENTA && !/^\d{4}-\d{2}-\d{2}$/.test(form.FECHA_SALIDA_FACTURA_VENTA))
-      e.FECHA_SALIDA_FACTURA_VENTA = 'Formato: YYYY-MM-DD';
-    if (form.FECHA_FACTURA_VENTA && !/^\d{4}-\d{2}-\d{2}$/.test(form.FECHA_FACTURA_VENTA))
-      e.FECHA_FACTURA_VENTA = 'Formato: YYYY-MM-DD';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -100,15 +129,15 @@ export default function FacturaVentaModal({ visible, onClose, factura, onSaved }
  
     const payload: Omit<FacturaVenta, 'ID_FACTURA_VENTA'> = {
       SERIE_FACTURA_VENTA:           form.SERIE_FACTURA_VENTA           || null,
-      CORRELATIVO_FACTURA_VENTA:     num(form.CORRELATIVO_FACTURA_VENTA),
-      FECHA_SALIDA_FACTURA_VENTA:    toISODate(form.FECHA_SALIDA_FACTURA_VENTA),
-      FECHA_FACTURA_VENTA:           toISODate(form.FECHA_FACTURA_VENTA),
+      CORRELATIVO_FACTURA_VENTA:     num(form.CORRELATIVO_FACTURA_VENTA as string),
+      FECHA_SALIDA_FACTURA_VENTA:    toISODate(form.FECHA_SALIDA_FACTURA_VENTA as string),
+      FECHA_FACTURA_VENTA:           toISODate(form.FECHA_FACTURA_VENTA as string),
       OBSERVACION_SALIDA_MERCADERIA: form.OBSERVACION_SALIDA_MERCADERIA || null,
       ESTADO_SALIDA_MERCADERIA:      form.ESTADO_SALIDA_MERCADERIA      || null,
-      TOTAL_FACTURA_VENTA:           num(form.TOTAL_FACTURA_VENTA),
-      ID_SALIDA_MERCADERIA:          num(form.ID_SALIDA_MERCADERIA),
-      ID_USUARIO_CREA:               num(form.ID_USUARIO_CREA),
-      ID_USUARIO_MODIFICA:           num(form.ID_USUARIO_MODIFICA),
+      TOTAL_FACTURA_VENTA:           num(form.TOTAL_FACTURA_VENTA as string),
+      ID_SALIDA_MERCADERIA:          form.ID_SALIDA_MERCADERIA,
+      ID_USUARIO_CREA:               form.ID_USUARIO_CREA,
+      ID_USUARIO_MODIFICA:           form.ID_USUARIO_MODIFICA,
     };
  
     try {
@@ -146,8 +175,8 @@ export default function FacturaVentaModal({ visible, onClose, factura, onSaved }
           <View style={{ flex: 1 }}>
             <Field
               label="Serie *"
-              value={form.SERIE_FACTURA_VENTA}
-              onChangeText={v => set('SERIE_FACTURA_VENTA', v)}
+              value={form.SERIE_FACTURA_VENTA as string}
+              onChangeText={v => setTxt('SERIE_FACTURA_VENTA', v)}
               error={errors.SERIE_FACTURA_VENTA}
               placeholder="Ej: A"
               autoCapitalize="characters"
@@ -157,8 +186,8 @@ export default function FacturaVentaModal({ visible, onClose, factura, onSaved }
           <View style={{ flex: 1 }}>
             <Field
               label="Correlativo"
-              value={form.CORRELATIVO_FACTURA_VENTA}
-              onChangeText={v => set('CORRELATIVO_FACTURA_VENTA', v)}
+              value={form.CORRELATIVO_FACTURA_VENTA as string}
+              onChangeText={v => setTxt('CORRELATIVO_FACTURA_VENTA', v)}
               keyboardType="numeric"
               placeholder="Ej: 1001"
             />
@@ -173,7 +202,7 @@ export default function FacturaVentaModal({ visible, onClose, factura, onSaved }
             <TouchableOpacity
               key={est}
               style={[styles.toggleBtn, form.ESTADO_SALIDA_MERCADERIA === est && styles.toggleBtnActive]}
-              onPress={() => set('ESTADO_SALIDA_MERCADERIA', est)}
+              onPress={() => setTxt('ESTADO_SALIDA_MERCADERIA', est)}
             >
               <Text style={[styles.toggleText, form.ESTADO_SALIDA_MERCADERIA === est && styles.toggleTextActive]}>
                 {estadoLabel(est)}
@@ -183,30 +212,24 @@ export default function FacturaVentaModal({ visible, onClose, factura, onSaved }
         </View>
  
         {/* ── Fechas ── */}
-        <SectionTitle label="Fechas (YYYY-MM-DD)" />
+        <SectionTitle label="Fechas" />
  
         <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Field
-              label="Fecha salida"
-              value={form.FECHA_SALIDA_FACTURA_VENTA}
-              onChangeText={v => set('FECHA_SALIDA_FACTURA_VENTA', v)}
-              error={errors.FECHA_SALIDA_FACTURA_VENTA}
-              placeholder="2024-01-15"
-              keyboardType="numeric"
-            />
-          </View>
+          <DatePickerField
+            label="Fecha salida"
+            value={form.FECHA_SALIDA_FACTURA_VENTA as string}
+            onChange={v => setTxt('FECHA_SALIDA_FACTURA_VENTA', v)}
+            error={errors.FECHA_SALIDA_FACTURA_VENTA}
+            flex
+          />
           <View style={{ width: Layout.spacing.medium }} />
-          <View style={{ flex: 1 }}>
-            <Field
-              label="Fecha factura"
-              value={form.FECHA_FACTURA_VENTA}
-              onChangeText={v => set('FECHA_FACTURA_VENTA', v)}
-              error={errors.FECHA_FACTURA_VENTA}
-              placeholder="2024-01-15"
-              keyboardType="numeric"
-            />
-          </View>
+          <DatePickerField
+            label="Fecha factura"
+            value={form.FECHA_FACTURA_VENTA as string}
+            onChange={v => setTxt('FECHA_FACTURA_VENTA', v)}
+            error={errors.FECHA_FACTURA_VENTA}
+            flex
+          />
         </View>
  
         {/* ── Montos ── */}
@@ -214,19 +237,19 @@ export default function FacturaVentaModal({ visible, onClose, factura, onSaved }
  
         <Field
           label="Total factura"
-          value={form.TOTAL_FACTURA_VENTA}
-          onChangeText={v => set('TOTAL_FACTURA_VENTA', v)}
+          value={form.TOTAL_FACTURA_VENTA as string}
+          onChangeText={v => setTxt('TOTAL_FACTURA_VENTA', v)}
           keyboardType="decimal-pad"
           placeholder="0.00"
         />
- 
+
         {/* ── Observación ── */}
         <SectionTitle label="Observación" />
- 
+
         <Field
           label="Observación"
-          value={form.OBSERVACION_SALIDA_MERCADERIA}
-          onChangeText={v => set('OBSERVACION_SALIDA_MERCADERIA', v)}
+          value={form.OBSERVACION_SALIDA_MERCADERIA as string}
+          onChangeText={v => setTxt('OBSERVACION_SALIDA_MERCADERIA', v)}
           placeholder="Notas u observaciones…"
           multiline
         />
@@ -234,34 +257,29 @@ export default function FacturaVentaModal({ visible, onClose, factura, onSaved }
         {/* ── Referencias ── */}
         <SectionTitle label="Referencias" />
  
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Field
-              label="ID Salida mercadería"
-              value={form.ID_SALIDA_MERCADERIA}
-              onChangeText={v => set('ID_SALIDA_MERCADERIA', v)}
-              keyboardType="numeric"
-              placeholder="ID salida"
-            />
-          </View>
-          <View style={{ width: Layout.spacing.medium }} />
-          <View style={{ flex: 1 }}>
-            <Field
-              label="ID Usuario crea"
-              value={form.ID_USUARIO_CREA}
-              onChangeText={v => set('ID_USUARIO_CREA', v)}
-              keyboardType="numeric"
-              placeholder="ID usuario"
-            />
-          </View>
-        </View>
- 
-        <Field
-          label="ID Usuario modifica"
+        <DropdownSelect
+          label="Salida Mercadería"
+          value={form.ID_SALIDA_MERCADERIA}
+          onChange={v => setNum('ID_SALIDA_MERCADERIA', v)}
+          options={salidas}
+          loading={loadingOpts}
+          placeholder="Seleccionar salida de mercadería..."
+        />
+        <DropdownSelect
+          label="Usuario Crea"
+          value={form.ID_USUARIO_CREA}
+          onChange={v => setNum('ID_USUARIO_CREA', v)}
+          options={usuarios}
+          loading={loadingOpts}
+          placeholder="Seleccionar usuario..."
+        />
+        <DropdownSelect
+          label="Usuario Modifica"
           value={form.ID_USUARIO_MODIFICA}
-          onChangeText={v => set('ID_USUARIO_MODIFICA', v)}
-          keyboardType="numeric"
-          placeholder="ID usuario que modifica"
+          onChange={v => setNum('ID_USUARIO_MODIFICA', v)}
+          options={usuarios}
+          loading={loadingOpts}
+          placeholder="Seleccionar usuario..."
         />
  
         <View style={{ height: 24 }} />

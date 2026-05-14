@@ -8,7 +8,7 @@ import { Transportista, createTransportista, updateTransportista } from '../../s
 import Drawer from '../ui/Drawer';
 
 const ESTADOS = ['A', 'I'];
-const TIPOS_LIC = ['A', 'B', 'C', 'D', 'E'];
+const TIPOS_LIC = ['A', 'B', 'M'];
 
 const EMPTY: Record<string, string> = {
   NOMBRE_TRANSPORTISTA: '', APELLIDOS_TRANSPORTISTA: '', LICENCIA_TRANSPORTISTA: '',

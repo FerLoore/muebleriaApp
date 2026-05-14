@@ -1,7 +1,19 @@
 import api from './api';
 
-// TODO: Implementar métodos del servicio para Empleados
-export const getEmpleados = async () => {
-  // const response = await api.get('/Empleados');
-  // return response.data;
+export interface Empleado {
+  IdEmpleado:          number;
+  NombresEmpleado:     string | null;
+  ApellidosEmpleado:   string | null;
+  NumeroEmpleado:      string | null;
+  EstadoEmpleado:      string | null;
+}
+
+export const getEmpleados = async (): Promise<Empleado[]> => {
+  try {
+    const response = await api.get('/Empleados/Index');
+    return response.data;
+  } catch (error) {
+    console.error('Error obteniendo empleados:', error);
+    throw error;
+  }
 };

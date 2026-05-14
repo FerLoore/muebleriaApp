@@ -41,6 +41,9 @@ function RootLayoutInner() {
         { name: 'Clientes', icon: 'users', route: '/clientes' },
         { name: 'Orden de Venta', icon: 'dollar-sign', route: '/orden-venta' },
         { name: 'Factura Venta', icon: 'file-invoice', route: '/factura-venta' },
+        { name: 'Det. Factura', icon: 'file-invoice-dollar', route: '/factura-venta-detalle' },
+        { name: 'Devoluciones', icon: 'undo-alt', route: '/devolucion-venta' },
+        { name: 'Det. Devolución', icon: 'list-alt', route: '/devolucion-venta-detalle' },
       ],
     },
     {
@@ -70,6 +73,9 @@ function RootLayoutInner() {
       module: 'RRHH',
       item: [
         { name: 'Tipo Contrato', icon: 'file-contract', route: '/tipo-contrato' },
+        { name: 'Nómina', icon: 'file-alt', route: '/nomina' },
+        { name: 'Det. Nómina', icon: 'user-alt', route: '/nomina-detalle' },
+        { name: 'Asistencia', icon: 'calendar-check', route: '/asistencia' },
       ],
     },
   ];

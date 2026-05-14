@@ -1,7 +1,17 @@
 import api from './api';
 
-// TODO: Implementar métodos del servicio para Usuarios
-export const getUsuarios = async () => {
-  // const response = await api.get('/Usuarios');
-  // return response.data;
+export interface Usuario {
+  IdUsuario:    number;
+  NombreUsuario: string | null;
+  Email:        string | null;
+}
+
+export const getUsuarios = async (): Promise<Usuario[]> => {
+  try {
+    const response = await api.get('/Usuarios/Index');
+    return response.data;
+  } catch (error) {
+    console.error('Error obteniendo usuarios:', error);
+    throw error;
+  }
 };

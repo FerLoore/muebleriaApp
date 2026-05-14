@@ -1,7 +1,16 @@
 import api from './api';
 
-// TODO: Implementar métodos del servicio para Sucursales
-export const getSucursales = async () => {
-  // const response = await api.get('/Sucursales');
-  // return response.data;
+export interface Sucursal {
+  IdSucursal:    number;
+  NombreSucursal: string | null;
+}
+
+export const getSucursales = async (): Promise<Sucursal[]> => {
+  try {
+    const response = await api.get('/Sucursales/Index');
+    return response.data;
+  } catch (error) {
+    console.error('Error obteniendo sucursales:', error);
+    throw error;
+  }
 };

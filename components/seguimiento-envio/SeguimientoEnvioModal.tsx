@@ -5,89 +5,141 @@ import Toast from 'react-native-toast-message';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
 import { SeguimientoEnvio, createSeguimientoEnvio, updateSeguimientoEnvio } from '../../services/seguimientoEnvioService';
+import { getEntregas } from '../../services/entregaService';
+import { getUsuarios } from '../../services/usuariosService';
 import Drawer from '../ui/Drawer';
+import DatePickerField from '../ui/DatePickerField';
+import DropdownSelect, { DropdownOption } from '../ui/DropdownSelect';
 
-const ESTADOS = ['P', 'T', 'E', 'D'];
-const ESTADO_LABEL: Record<string, string> = { P: 'Pendiente', T: 'En Tránsito', E: 'En Entrega', D: 'Entregado' };
-
-const EMPTY: Record<string, string> = {
-  FECHA_HORA_SEGUIMIENTO_ENVIO: '', DESCRIPCION_SEGUIMIENTO_ENVIO: '',
-  UBICACION_SEGUIMIENTO_ENVIO: '', ESTADO_SEGUIMIENTO_ENVIO: 'P',
-  ID_ENTREGA: '', ID_USUARIO_CREA: '', ID_USUARIO_MODIFICA: '',
-};
+const ESTADOS = ['P', 'T', 'E', 'C'];
+const ESTADO_LABEL: Record<string, string> = { P: 'Pendiente', T: 'En Tránsito', E: 'Entregado', C: 'Cancelado' };
 
 type Props = { visible: boolean; onClose: () => void; item: SeguimientoEnvio | null; onSaved: () => void; };
 
 export default function SeguimientoEnvioModal({ visible, onClose, item, onSaved }: Props) {
-  const [form, setForm] = useState<Record<string, string>>(EMPTY);
+  const [fechaHora, setFechaHora]     = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [ubicacion, setUbicacion]     = useState('');
+  const [estado, setEstado]           = useState('P');
+
+  const [idEntrega,          setIdEntrega]          = useState<number | null>(null);
+  const [idUsuarioCrea,      setIdUsuarioCrea]      = useState<number | null>(null);
+  const [idUsuarioModifica,  setIdUsuarioModifica]  = useState<number | null>(null);
+
+  const [entregas,  setEntregas]  = useState<DropdownOption[]>([]);
+  const [usuarios,  setUsuarios]  = useState<DropdownOption[]>([]);
+  const [loadingOpts, setLoadingOpts] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (!visible) return;
+    setLoadingOpts(true);
+    Promise.all([getEntregas(), getUsuarios()])
+      .then(([ents, usrs]) => {
+        setEntregas(ents.map(e => ({
+          value: e.ID_ENTREGA,
+          label: `#${e.ID_ENTREGA} — ${e.NOMBRE_RECIBE_ENTREGA ?? ''} ${e.APELLIDOS_RECIBE_ENTREGA ?? ''}`.trim(),
+        })));
+        setUsuarios(usrs.map(u => ({
+          value: u.IdUsuario,
+          label: `${u.NombreUsuario ?? '—'} (ID ${u.IdUsuario})`,
+        })));
+      })
+      .catch(() => Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudieron cargar opciones.' }))
+      .finally(() => setLoadingOpts(false));
+  }, [visible]);
+
+  useEffect(() => {
     if (item) {
-      setForm({
-        FECHA_HORA_SEGUIMIENTO_ENVIO: item.FECHA_HORA_SEGUIMIENTO_ENVIO ?? '',
-        DESCRIPCION_SEGUIMIENTO_ENVIO: item.DESCRIPCION_SEGUIMIENTO_ENVIO ?? '',
-        UBICACION_SEGUIMIENTO_ENVIO: item.UBICACION_SEGUIMIENTO_ENVIO ?? '',
-        ESTADO_SEGUIMIENTO_ENVIO: item.ESTADO_SEGUIMIENTO_ENVIO ?? 'P',
-        ID_ENTREGA: item.ID_ENTREGA != null ? String(item.ID_ENTREGA) : '',
-        ID_USUARIO_CREA: item.ID_USUARIO_CREA != null ? String(item.ID_USUARIO_CREA) : '',
-        ID_USUARIO_MODIFICA: item.ID_USUARIO_MODIFICA != null ? String(item.ID_USUARIO_MODIFICA) : '',
-      });
-    } else { setForm(EMPTY); }
+      setFechaHora(item.FECHA_HORA_SEGUIMIENTO_ENVIO ?? '');
+      setDescripcion(item.DESCRIPCION_SEGUIMIENTO_ENVIO ?? '');
+      setUbicacion(item.UBICACION_SEGUIMIENTO_ENVIO ?? '');
+      setEstado(item.ESTADO_SEGUIMIENTO_ENVIO ?? 'P');
+      setIdEntrega(item.ID_ENTREGA);
+      setIdUsuarioCrea(item.ID_USUARIO_CREA);
+      setIdUsuarioModifica(item.ID_USUARIO_MODIFICA);
+    } else {
+      setFechaHora(''); setDescripcion(''); setUbicacion(''); setEstado('P');
+      setIdEntrega(null); setIdUsuarioCrea(null); setIdUsuarioModifica(null);
+    }
     setErrors({});
   }, [item, visible]);
 
-  const set = (k: string, v: string) => { setForm(p => ({ ...p, [k]: v })); setErrors(p => ({ ...p, [k]: '' })); };
-  const num = (v: string) => v === '' ? null : Number(v);
-
   const handleSave = async () => {
     const e: Record<string, string> = {};
-    if (!form.DESCRIPCION_SEGUIMIENTO_ENVIO.trim()) e.DESCRIPCION_SEGUIMIENTO_ENVIO = 'Requerido';
+    if (!descripcion.trim()) e.descripcion = 'Requerido';
     if (Object.keys(e).length) { setErrors(e); return; }
     setSaving(true);
     const payload: Omit<SeguimientoEnvio, 'ID_SEGUIMIENTO_ENVIO'> = {
-      FECHA_HORA_SEGUIMIENTO_ENVIO: form.FECHA_HORA_SEGUIMIENTO_ENVIO || null,
-      DESCRIPCION_SEGUIMIENTO_ENVIO: form.DESCRIPCION_SEGUIMIENTO_ENVIO || null,
-      UBICACION_SEGUIMIENTO_ENVIO: form.UBICACION_SEGUIMIENTO_ENVIO || null,
-      ESTADO_SEGUIMIENTO_ENVIO: form.ESTADO_SEGUIMIENTO_ENVIO || null,
-      ID_ENTREGA: num(form.ID_ENTREGA),
-      ID_USUARIO_CREA: num(form.ID_USUARIO_CREA),
-      ID_USUARIO_MODIFICA: num(form.ID_USUARIO_MODIFICA),
+      FECHA_HORA_SEGUIMIENTO_ENVIO:  fechaHora || null,
+      DESCRIPCION_SEGUIMIENTO_ENVIO: descripcion || null,
+      UBICACION_SEGUIMIENTO_ENVIO:   ubicacion || null,
+      ESTADO_SEGUIMIENTO_ENVIO:      estado || null,
+      ID_ENTREGA:                    idEntrega,
+      ID_USUARIO_CREA:               idUsuarioCrea,
+      ID_USUARIO_MODIFICA:           idUsuarioModifica,
     };
     try {
-      if (item) { await updateSeguimientoEnvio(item.ID_SEGUIMIENTO_ENVIO, payload); } else { await createSeguimientoEnvio(payload); }
+      if (item) { await updateSeguimientoEnvio(item.ID_SEGUIMIENTO_ENVIO, payload); }
+      else       { await createSeguimientoEnvio(payload); }
       Toast.show({ type: 'success', text1: 'Guardado', text2: 'Seguimiento guardado.' });
       onSaved();
     } catch { Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo guardar.' }); }
-    finally { setSaving(false); }
+    finally   { setSaving(false); }
   };
 
   return (
     <Drawer visible={visible} onClose={onClose} title={item ? 'Editar Seguimiento' : 'Nuevo Seguimiento'}>
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Sec label="Seguimiento" />
-        <F label="Fecha y Hora" val={form.FECHA_HORA_SEGUIMIENTO_ENVIO} onChange={v => set('FECHA_HORA_SEGUIMIENTO_ENVIO', v)} ph="YYYY-MM-DD HH:MM" />
-        <F label="Descripción *" val={form.DESCRIPCION_SEGUIMIENTO_ENVIO} onChange={v => set('DESCRIPCION_SEGUIMIENTO_ENVIO', v)} err={errors.DESCRIPCION_SEGUIMIENTO_ENVIO} ph="Descripción del evento..." ml />
-        <F label="Ubicación" val={form.UBICACION_SEGUIMIENTO_ENVIO} onChange={v => set('UBICACION_SEGUIMIENTO_ENVIO', v)} ph="Coordenadas o dirección" />
+
+        <Sec label="Entrega asociada" />
+        <DropdownSelect
+          label="Entrega"
+          value={idEntrega}
+          onChange={setIdEntrega}
+          options={entregas}
+          loading={loadingOpts}
+          placeholder="Seleccionar entrega..."
+        />
+
+        <Sec label="Detalle del seguimiento" />
+        <DatePickerField
+          label="Fecha"
+          value={fechaHora ? fechaHora.split('T')[0].split(' ')[0] : ''}
+          onChange={v => setFechaHora(v)}
+        />
+        <F label="Descripción *" val={descripcion} onChange={setDescripcion} ph="Descripción del evento" err={errors.descripcion} multiline />
+        <F label="Ubicación" val={ubicacion} onChange={setUbicacion} ph="Dirección o coordenadas" />
 
         <Sec label="Estado" />
-        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
           {ESTADOS.map(est => (
-            <TouchableOpacity key={est}
-              style={[s.toggleBtn, form.ESTADO_SEGUIMIENTO_ENVIO === est && s.toggleBtnActive]}
-              onPress={() => set('ESTADO_SEGUIMIENTO_ENVIO', est)}>
-              <Text style={[s.toggleText, form.ESTADO_SEGUIMIENTO_ENVIO === est && s.toggleTextActive]}>{ESTADO_LABEL[est]}</Text>
+            <TouchableOpacity key={est} style={[s.toggleBtn, estado === est && s.toggleBtnActive]} onPress={() => setEstado(est)}>
+              <Text style={[s.toggleText, estado === est && s.toggleTextActive]}>{ESTADO_LABEL[est]}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Sec label="Referencias" />
-        <F label="ID Entrega" val={form.ID_ENTREGA} onChange={v => set('ID_ENTREGA', v)} kb="numeric" ph="ID" />
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: Layout.spacing.medium }}>
-          <F flex label="ID Usuario Crea" val={form.ID_USUARIO_CREA} onChange={v => set('ID_USUARIO_CREA', v)} kb="numeric" ph="ID" />
-          <F flex label="ID Usuario Modifica" val={form.ID_USUARIO_MODIFICA} onChange={v => set('ID_USUARIO_MODIFICA', v)} kb="numeric" ph="ID" />
-        </View>
+        <Sec label="Usuarios" />
+        <DropdownSelect
+          label="Usuario Crea"
+          value={idUsuarioCrea}
+          onChange={setIdUsuarioCrea}
+          options={usuarios}
+          loading={loadingOpts}
+          placeholder="Seleccionar usuario..."
+        />
+        <DropdownSelect
+          label="Usuario Modifica"
+          value={idUsuarioModifica}
+          onChange={setIdUsuarioModifica}
+          options={usuarios}
+          loading={loadingOpts}
+          placeholder="Seleccionar usuario..."
+        />
+
         <View style={{ height: 24 }} />
       </ScrollView>
       <View style={s.footer}>
@@ -106,21 +158,18 @@ function Sec({ label }: { label: string }) {
     <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
   </View>;
 }
-
-function F({ label, val, onChange, err, ph, kb = 'default', ml, flex }: {
-  label: string; val: string; onChange: (v: string) => void; err?: string; ph?: string; kb?: any; ml?: boolean; flex?: boolean;
+function F({ label, val, onChange, err, ph, kb = 'default', flex, multiline }: {
+  label: string; val: string; onChange: (v: string) => void; err?: string; ph?: string; kb?: any; flex?: boolean; multiline?: boolean;
 }) {
   return (
     <View style={[{ marginBottom: 14 }, flex && { flex: 1 }]}>
       <Text style={{ fontSize: 12, fontWeight: '600', color: Colors.text, marginBottom: 5 }}>{label}</Text>
-      <TextInput
-        style={[{ backgroundColor: Colors.background, borderWidth: 1, borderColor: err ? '#DC2626' : Colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: Colors.text }, ml && { height: 80, textAlignVertical: 'top' }]}
-        value={val} onChangeText={onChange} placeholder={ph} placeholderTextColor={Colors.textMuted} keyboardType={kb} multiline={ml} />
+      <TextInput style={{ backgroundColor: Colors.background, borderWidth: 1, borderColor: err ? '#DC2626' : Colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: Colors.text, minHeight: multiline ? 80 : undefined, textAlignVertical: multiline ? 'top' : undefined }}
+        value={val} onChangeText={onChange} placeholder={ph} placeholderTextColor={Colors.textMuted} keyboardType={kb} multiline={multiline} />
       {!!err && <Text style={{ fontSize: 11, color: '#DC2626', marginTop: 3 }}>{err}</Text>}
     </View>
   );
 }
-
 const s = StyleSheet.create({
   scroll: { flex: 1 }, content: { paddingHorizontal: Layout.spacing.large, paddingTop: Layout.spacing.medium },
   toggleBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background },

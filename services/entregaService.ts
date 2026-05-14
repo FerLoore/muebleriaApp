@@ -5,12 +5,12 @@ export interface Entrega {
   NOMBRE_RECIBE_ENTREGA: string | null;
   APELLIDOS_RECIBE_ENTREGA: string | null;
   DPI_RECIBE_ENTREGA: string | null;
+  FIRMA_RECIBE_ENTREGA: string | null;
+  FOTO_ENTREGA: string | null;
   FECHA_ENTREGA: string | null;
   UBICACION_ENTREGA: string | null;
   OBSERVACION_ENTREGA: string | null;
   ID_DESPACHO_DETALLE: number | null;
-  ID_USUARIO_CREA: number | null;
-  ID_USUARIO_MODIFICA: number | null;
 }
 
 export const getEntregas = async (): Promise<Entrega[]> => {

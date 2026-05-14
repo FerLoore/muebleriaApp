@@ -18,6 +18,7 @@ import {
   updateOrdenVenta,
 } from '../../services/ordenVentaService';
 import Drawer from '../ui/Drawer';
+import DatePickerField from '../ui/DatePickerField';
  
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const ESTADOS = ['PENDIENTE', 'APROBADA', 'EN_PROCESO', 'ENTREGADA', 'CANCELADA'];
@@ -87,10 +88,6 @@ export default function OrdenVentaModal({ visible, onClose, orden, onSaved }: Pr
   const validate = (): boolean => {
     const e: Partial<Form> = {};
     if (!form.NUMERO_ORDEN_VENTA.trim()) e.NUMERO_ORDEN_VENTA = 'Requerido';
-    if (form.FECHA_SOLICITUD_ORDEN_VENTA && !/^\d{4}-\d{2}-\d{2}$/.test(form.FECHA_SOLICITUD_ORDEN_VENTA))
-      e.FECHA_SOLICITUD_ORDEN_VENTA = 'Formato: YYYY-MM-DD';
-    if (form.FECHA_ENTREGA_ORDEN_VENTA && !/^\d{4}-\d{2}-\d{2}$/.test(form.FECHA_ENTREGA_ORDEN_VENTA))
-      e.FECHA_ENTREGA_ORDEN_VENTA = 'Formato: YYYY-MM-DD';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -184,30 +181,24 @@ export default function OrdenVentaModal({ visible, onClose, orden, onSaved }: Pr
         </View>
  
         {/* ── Fechas ── */}
-        <SectionTitle label="Fechas (YYYY-MM-DD)" />
+        <SectionTitle label="Fechas" />
  
         <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Field
-              label="Fecha solicitud"
-              value={form.FECHA_SOLICITUD_ORDEN_VENTA}
-              onChangeText={v => set('FECHA_SOLICITUD_ORDEN_VENTA', v)}
-              error={errors.FECHA_SOLICITUD_ORDEN_VENTA}
-              placeholder="2024-01-15"
-              keyboardType="numeric"
-            />
-          </View>
+          <DatePickerField
+            label="Fecha solicitud"
+            value={form.FECHA_SOLICITUD_ORDEN_VENTA}
+            onChange={v => set('FECHA_SOLICITUD_ORDEN_VENTA', v)}
+            error={errors.FECHA_SOLICITUD_ORDEN_VENTA}
+            flex
+          />
           <View style={{ width: Layout.spacing.medium }} />
-          <View style={{ flex: 1 }}>
-            <Field
-              label="Fecha entrega"
-              value={form.FECHA_ENTREGA_ORDEN_VENTA}
-              onChangeText={v => set('FECHA_ENTREGA_ORDEN_VENTA', v)}
-              error={errors.FECHA_ENTREGA_ORDEN_VENTA}
-              placeholder="2024-01-20"
-              keyboardType="numeric"
-            />
-          </View>
+          <DatePickerField
+            label="Fecha entrega"
+            value={form.FECHA_ENTREGA_ORDEN_VENTA}
+            onChange={v => set('FECHA_ENTREGA_ORDEN_VENTA', v)}
+            error={errors.FECHA_ENTREGA_ORDEN_VENTA}
+            flex
+          />
         </View>
  
         {/* ── Montos ── */}

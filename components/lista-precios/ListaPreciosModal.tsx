@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import Toast from 'react-native-toast-message';
 import Drawer from '../ui/Drawer';
+import DatePickerField from '../ui/DatePickerField';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
 import { ListaPrecios } from '../../services/listaPreciosService';
@@ -71,24 +72,19 @@ export default function ListaPreciosModal({ visible, listaPrecios, onClose, onSa
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.field, { flex: 1, marginRight: 10 }]}>
-              <Text style={styles.label}>Fecha Desde</Text>
-              <TextInput 
-                style={styles.input} 
-                value={fechaDesde} 
-                onChangeText={setFechaDesde} 
-                placeholder="YYYY-MM-DD"
-              />
-            </View>
-            <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Fecha Hasta</Text>
-              <TextInput 
-                style={styles.input} 
-                value={fechaHasta} 
-                onChangeText={setFechaHasta} 
-                placeholder="YYYY-MM-DD"
-              />
-            </View>
+            <DatePickerField
+              label="Fecha Desde"
+              value={fechaDesde}
+              onChange={setFechaDesde}
+              flex
+            />
+            <View style={{ width: 10 }} />
+            <DatePickerField
+              label="Fecha Hasta"
+              value={fechaHasta}
+              onChange={setFechaHasta}
+              flex
+            />
           </View>
 
           <View style={styles.field}>

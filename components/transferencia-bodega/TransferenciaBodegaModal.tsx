@@ -18,6 +18,7 @@ import {
   updateTransferenciaBodega,
 } from '../../services/transferenciaBodegaService';
 import Drawer from '../ui/Drawer';
+import DatePickerField from '../ui/DatePickerField';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -89,10 +90,6 @@ export default function TransferenciaBodegaModal({ visible, onClose, transferenc
     const e: Partial<Form> = {};
     if (!form.CODIGO.trim())  e.CODIGO  = 'Requerido';
     if (!form.ESTADO.trim())  e.ESTADO  = 'Requerido';
-    if (form.FECHA_ENVIO && !/^\d{4}-\d{2}-\d{2}$/.test(form.FECHA_ENVIO))
-      e.FECHA_ENVIO = 'Formato: YYYY-MM-DD';
-    if (form.FECHA_ENTREGA && !/^\d{4}-\d{2}-\d{2}$/.test(form.FECHA_ENTREGA))
-      e.FECHA_ENTREGA = 'Formato: YYYY-MM-DD';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -180,30 +177,24 @@ export default function TransferenciaBodegaModal({ visible, onClose, transferenc
         </View>
 
         {/* ── Fechas ── */}
-        <SectionTitle label="Fechas (YYYY-MM-DD)" />
+        <SectionTitle label="Fechas" />
 
         <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Field
-              label="Fecha de envío"
-              value={form.FECHA_ENVIO}
-              onChangeText={v => set('FECHA_ENVIO', v)}
-              error={errors.FECHA_ENVIO}
-              placeholder="2024-01-15"
-              keyboardType="numeric"
-            />
-          </View>
+          <DatePickerField
+            label="Fecha de envío"
+            value={form.FECHA_ENVIO}
+            onChange={v => set('FECHA_ENVIO', v)}
+            error={errors.FECHA_ENVIO}
+            flex
+          />
           <View style={{ width: Layout.spacing.medium }} />
-          <View style={{ flex: 1 }}>
-            <Field
-              label="Fecha de entrega"
-              value={form.FECHA_ENTREGA}
-              onChangeText={v => set('FECHA_ENTREGA', v)}
-              error={errors.FECHA_ENTREGA}
-              placeholder="2024-01-20"
-              keyboardType="numeric"
-            />
-          </View>
+          <DatePickerField
+            label="Fecha de entrega"
+            value={form.FECHA_ENTREGA}
+            onChange={v => set('FECHA_ENTREGA', v)}
+            error={errors.FECHA_ENTREGA}
+            flex
+          />
         </View>
 
         {/* ── Relaciones ── */}
