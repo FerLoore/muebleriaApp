@@ -50,6 +50,7 @@ function RootLayoutInner() {
       module: 'Inventario',
       item: [
         { name: 'Artículos', icon: 'shopping-cart', route: '/articulo' },
+        { name: 'Catálogo', icon: 'store', route: '/catalogo' },
         { name: 'Ubicación Bodega', icon: 'map-marker-alt', route: '/ubicacion-bodega' },
         { name: 'Categorías', icon: 'list-alt', route: '/categorias-articulo' },
         { name: 'Transferencias', icon: 'exchange-alt', route: '/transferencia-bodega' },

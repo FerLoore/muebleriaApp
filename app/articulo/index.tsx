@@ -34,8 +34,8 @@ export default function ArticuloScreen() {
     try {
       const data = await getArticulos();
       setArticulos(data);
-    } catch {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo cargar los artículos.' });
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'Error al cargar', text2: e?.message ?? 'No se pudo cargar los artículos.' });
     } finally {
       setLoading(false);
     }

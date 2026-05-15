@@ -12,11 +12,13 @@ import {
 import Toast from 'react-native-toast-message';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
+import { getCatalogo } from '../../services/catalogoService';
 import {
   StockArticulo,
   createStockArticulo,
   updateStockArticulo,
 } from '../../services/stockArticuloService';
+import DropdownSelect from '../ui/DropdownSelect';
 import Drawer from '../ui/Drawer';
 
 // ─── Formulario vacío ─────────────────────────────────────────────────────────
@@ -32,11 +34,9 @@ const EMPTY_FORM = {
 
 type Form = typeof EMPTY_FORM;
 
-// ─── Helpers de fecha ─────────────────────────────────────────────────────────
 const toInputDate = (iso: string | null) => iso ? iso.split('T')[0] : '';
 const toISODate   = (d: string) => d ? `${d}T00:00:00` : null;
 
-// ─── Props ────────────────────────────────────────────────────────────────────
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -44,11 +44,32 @@ type Props = {
   onSaved: () => void;
 };
 
-// ─── Componente ───────────────────────────────────────────────────────────────
 export default function StockArticuloModal({ visible, onClose, stock, onSaved }: Props) {
-  const [form, setForm]     = useState<Form>(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Partial<Form>>({});
+  const [form, setForm]       = useState<Form>(EMPTY_FORM);
+  const [saving, setSaving]   = useState(false);
+  const [errors, setErrors]   = useState<Partial<Form>>({});
+  const [artOpciones, setArtOpciones] = useState<{ label: string; value: number }[]>([]);
+  const [articuloId, setArticuloId]   = useState<number | null>(null);
+  const [loadingArts, setLoadingArts] = useState(false);
+
+  // Carga artículos del catálogo al abrir el modal
+  useEffect(() => {
+    if (!visible) return;
+    setLoadingArts(true);
+    getCatalogo()
+      .then(lista => {
+        setArtOpciones(
+          lista
+            .filter(a => a.idArticulo != null)
+            .map(a => ({
+              label: a.nombre ?? `Artículo #${a.idArticulo}`,
+              value: a.idArticulo as number,
+            }))
+        );
+      })
+      .catch(() => {})
+      .finally(() => setLoadingArts(false));
+  }, [visible]);
 
   useEffect(() => {
     if (stock) {
@@ -61,8 +82,10 @@ export default function StockArticuloModal({ visible, onClose, stock, onSaved }:
         ID_ARTICULO:         stock.ID_ARTICULO  !== null ? String(stock.ID_ARTICULO)  : '',
         ID_UBICACION:        stock.ID_UBICACION !== null ? String(stock.ID_UBICACION) : '',
       });
+      setArticuloId(stock.ID_ARTICULO ?? null);
     } else {
       setForm(EMPTY_FORM);
+      setArticuloId(null);
     }
     setErrors({});
   }, [stock, visible]);
@@ -76,7 +99,7 @@ export default function StockArticuloModal({ visible, onClose, stock, onSaved }:
 
   const validate = (): boolean => {
     const e: Partial<Form> = {};
-    if (!form.ID_ARTICULO.trim())  e.ID_ARTICULO  = 'Requerido';
+    if (articuloId == null)        e.ID_ARTICULO  = 'Requerido';
     if (!form.ID_UBICACION.trim()) e.ID_UBICACION = 'Requerido';
     if (form.ULTIMO_MOVIMIENTO && !/^\d{4}-\d{2}-\d{2}$/.test(form.ULTIMO_MOVIMIENTO))
       e.ULTIMO_MOVIMIENTO = 'Formato: YYYY-MM-DD';
@@ -94,7 +117,7 @@ export default function StockArticuloModal({ visible, onClose, stock, onSaved }:
       CANTIDAD_TRANSITO:   num(form.CANTIDAD_TRANSITO),
       COSTO_PROMEDIO:      num(form.COSTO_PROMEDIO),
       ULTIMO_MOVIMIENTO:   toISODate(form.ULTIMO_MOVIMIENTO),
-      ID_ARTICULO:         num(form.ID_ARTICULO),
+      ID_ARTICULO:         articuloId,
       ID_UBICACION:        num(form.ID_UBICACION),
     };
 
@@ -114,11 +137,7 @@ export default function StockArticuloModal({ visible, onClose, stock, onSaved }:
   };
 
   return (
-    <Drawer
-      visible={visible}
-      onClose={onClose}
-      title={stock ? 'Editar Stock' : 'Nuevo Stock'}
-    >
+    <Drawer visible={visible} onClose={onClose} title={stock ? 'Editar Stock' : 'Nuevo Stock'}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -126,32 +145,35 @@ export default function StockArticuloModal({ visible, onClose, stock, onSaved }:
         keyboardShouldPersistTaps="handled"
       >
 
-        {/* ── Referencias ── */}
-        <SectionTitle label="Referencias" />
+        {/* ── Artículo ── */}
+        <SectionTitle label="Artículo *" />
 
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Field
-              label="ID Artículo *"
-              value={form.ID_ARTICULO}
-              onChangeText={v => set('ID_ARTICULO', v)}
-              error={errors.ID_ARTICULO}
-              keyboardType="numeric"
-              placeholder="ID del artículo"
-            />
-          </View>
-          <View style={{ width: Layout.spacing.medium }} />
-          <View style={{ flex: 1 }}>
-            <Field
-              label="ID Ubicación *"
-              value={form.ID_UBICACION}
-              onChangeText={v => set('ID_UBICACION', v)}
-              error={errors.ID_UBICACION}
-              keyboardType="numeric"
-              placeholder="ID de la ubicación"
-            />
-          </View>
-        </View>
+        {loadingArts ? (
+          <ActivityIndicator color={Colors.primary} style={{ marginVertical: 12 }} />
+        ) : (
+          <DropdownSelect
+            label="Selecciona el artículo"
+            options={artOpciones}
+            value={articuloId}
+            onChange={v => {
+              setArticuloId(v);
+              setErrors(prev => ({ ...prev, ID_ARTICULO: undefined }));
+            }}
+            placeholder="— Elige un artículo —"
+            error={errors.ID_ARTICULO}
+          />
+        )}
+
+        {/* ── Ubicación ── */}
+        <SectionTitle label="Referencias" />
+        <Field
+          label="ID Ubicación *"
+          value={form.ID_UBICACION}
+          onChangeText={v => set('ID_UBICACION', v)}
+          error={errors.ID_UBICACION}
+          keyboardType="numeric"
+          placeholder="ID de la ubicación"
+        />
 
         {/* ── Cantidades ── */}
         <SectionTitle label="Cantidades" />
@@ -202,7 +224,6 @@ export default function StockArticuloModal({ visible, onClose, stock, onSaved }:
 
         {/* ── Fecha ── */}
         <SectionTitle label="Último movimiento (YYYY-MM-DD)" />
-
         <Field
           label="Fecha"
           value={form.ULTIMO_MOVIMIENTO}
@@ -215,7 +236,6 @@ export default function StockArticuloModal({ visible, onClose, stock, onSaved }:
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* ── Footer ── */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.btnCancel} onPress={onClose} disabled={saving}>
           <Text style={styles.btnCancelText}>Cancelar</Text>
@@ -229,9 +249,7 @@ export default function StockArticuloModal({ visible, onClose, stock, onSaved }:
             ? <ActivityIndicator color="#fff" size="small" />
             : <>
                 <FontAwesome5 name="save" size={13} color="#fff" />
-                <Text style={styles.btnSaveText}>
-                  {stock ? 'Guardar cambios' : 'Crear stock'}
-                </Text>
+                <Text style={styles.btnSaveText}>{stock ? 'Guardar cambios' : 'Crear stock'}</Text>
               </>
           }
         </TouchableOpacity>
@@ -249,7 +267,6 @@ function SectionTitle({ label }: { label: string }) {
     </View>
   );
 }
-
 const section = StyleSheet.create({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: 8 },
   text: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8 },
@@ -292,6 +309,7 @@ const styles = StyleSheet.create({
   scroll:        { flex: 1 },
   scrollContent: { paddingHorizontal: Layout.spacing.large, paddingTop: Layout.spacing.medium },
   row:           { flexDirection: 'row', alignItems: 'flex-start' },
+  errorTxt:      { fontSize: 11, color: '#DC2626', marginTop: -8, marginBottom: 8 },
   footer:        { flexDirection: 'row', gap: 10, paddingHorizontal: Layout.spacing.large, paddingVertical: Layout.spacing.medium, borderTopWidth: 1, borderTopColor: Colors.border, backgroundColor: '#fff' },
   btnCancel:     { flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
   btnCancelText: { fontSize: 14, color: Colors.text, fontWeight: '500' },

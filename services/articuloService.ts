@@ -60,9 +60,19 @@ export const getArticulos = async (): Promise<Articulo[]> => {
   try {
     const response = await api.get('/Articulo/Index');
     return response.data;
-  } catch (error) {
-    console.error('Error obteniendo artículos:', error);
-    throw error;
+  } catch (error: any) {
+    // ASP.NET Web API devuelve { Message: "...", MessageDetail: "..." }
+    const data = error?.response?.data;
+    const msg =
+      (typeof data === 'string' ? data : null)
+      ?? data?.Message
+      ?? data?.MessageDetail
+      ?? data?.message
+      ?? error?.message
+      ?? JSON.stringify(data)
+      ?? 'Error desconocido';
+    console.error('[articuloService] Error real:', JSON.stringify(data ?? error?.message));
+    throw new Error(String(msg));
   }
 };
 

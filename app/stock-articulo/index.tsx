@@ -13,6 +13,7 @@ import Toast from 'react-native-toast-message';
 import StockArticuloModal from '../../components/stock-articulo/StockArticuloModal';
 import { Colors } from '../../constants/colors';
 import { Layout } from '../../constants/layout';
+import { getCatalogo } from '../../services/catalogoService';
 import {
   StockArticulo,
   deleteStockArticulo,
@@ -36,6 +37,7 @@ function barColor(disponible: number | null): string {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function StockArticuloScreen() {
   const [stocks, setStocks]             = useState<StockArticulo[]>([]);
+  const [nombres, setNombres]           = useState<Map<number, string>>(new Map());
   const [loading, setLoading]           = useState(true);
   const [search, setSearch]             = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -44,8 +46,12 @@ export default function StockArticuloScreen() {
   const fetchStocks = async () => {
     setLoading(true);
     try {
-      const data = await getStockArticulos();
+      const [data, catalogo] = await Promise.all([getStockArticulos(), getCatalogo()]);
       setStocks(data);
+      // Construye mapa ID → nombre para lookup rápido
+      const mapa = new Map<number, string>();
+      catalogo.forEach(a => { if (a.idArticulo != null) mapa.set(a.idArticulo, a.nombre ?? `#${a.idArticulo}`); });
+      setNombres(mapa);
     } catch {
       Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo cargar el stock.' });
     } finally {
@@ -65,11 +71,12 @@ export default function StockArticuloScreen() {
     }
   };
 
-  // Búsqueda por ID artículo o ID ubicación
-  const filtered = stocks.filter(s =>
-    String(s.ID_ARTICULO  ?? '').includes(search) ||
-    String(s.ID_UBICACION ?? '').includes(search)
-  );
+  // Búsqueda por nombre de artículo o ID ubicación
+  const filtered = stocks.filter(s => {
+    const nombre = s.ID_ARTICULO != null ? (nombres.get(s.ID_ARTICULO) ?? '') : '';
+    return nombre.toLowerCase().includes(search.toLowerCase()) ||
+           String(s.ID_UBICACION ?? '').includes(search);
+  });
 
   const openCreate = () => { setSelected(null); setModalVisible(true); };
   const openEdit   = (s: StockArticulo) => { setSelected(s); setModalVisible(true); };
@@ -112,11 +119,10 @@ export default function StockArticuloScreen() {
         <FontAwesome5 name="search" size={12} color={Colors.textMuted} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar por ID artículo o ubicación…"
+          placeholder="Buscar por nombre de artículo…"
           placeholderTextColor={Colors.textMuted}
           value={search}
           onChangeText={setSearch}
-          keyboardType="numeric"
         />
         {search.length > 0 && (
           <TouchableOpacity onPress={() => setSearch('')}>
@@ -148,7 +154,11 @@ export default function StockArticuloScreen() {
                 {/* Fila superior */}
                 <View style={styles.cardRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.cardTitle}>Artículo #{item.ID_ARTICULO ?? '—'}</Text>
+                    <Text style={styles.cardTitle}>
+                      {item.ID_ARTICULO != null
+                        ? (nombres.get(item.ID_ARTICULO) ?? `Artículo #${item.ID_ARTICULO}`)
+                        : '—'}
+                    </Text>
                     <Text style={styles.cardSub}>Ubicación: {item.ID_UBICACION ?? '—'}</Text>
                   </View>
                   {/* Badge de disponibilidad */}
